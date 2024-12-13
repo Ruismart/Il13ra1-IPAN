@@ -1,0 +1,326 @@
+---
+output: 
+  html_document: 
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+---
+
+
+# newAnno for ref.snSS2 Colon neurons               
+           
+##### load dependancies               
+```{r message=FALSE, warning=FALSE, include=FALSE}
+source("I:/Shared_win/projects/RNA_normal/analysis.10x.r")
+```
+
+
+after analysis of several public and local datasets of ENS neurons,          
+here better to do re-clustering and new annotations for the first atlas data                 
+
+
+## processed obj        
+
+```{r}
+ss2_neur.seur <- readRDS("./ss2_neur.seur_traj.rds")
+ss2_neur.seur
+```
+
+
+```{r include=FALSE, paged.print=FALSE}
+#head(ss2_neur.seur@meta.data)
+ss2_neur.seur@meta.data[,c("Anno1","Anno2")] <- NULL
+```
+
+
+## re-clustering           
+
+
+rerun current local method to match annotations of SI neurons      
+
+
+```{r}
+GEX.seur <- ss2_neur.seur
+GEX.seur
+```
+
+
+### variable.new          
+
+```{r message=FALSE, warning=FALSE,fig.width=12,fig.height=5}
+GEX.seur <- FindVariableFeatures(GEX.seur, selection.method = "vst", nfeatures = 1500)
+
+# Identify the 10 most highly variable genes
+#top10 <- head(VariableFeatures(GEX.seur), 10)
+top20 <- head(VariableFeatures(GEX.seur), 20)
+
+# plot variable features with and without labels
+plot1 <- VariableFeaturePlot(GEX.seur)
+plot2 <- LabelPoints(plot = plot1, points = top20, repel = T)
+plot1 + plot2
+```
+
+
+```{r}
+head(VariableFeatures(GEX.seur), 200)
+```
+
+```{r}
+GEX.seur <- ScaleData(GEX.seur, features = rownames(GEX.seur))
+```
+
+### PCA.new       
+
+```{r}
+# exclude MT genes  and more 
+#
+MT_gene <- grep("^mt-",rownames(GEX.seur),value = T)
+GEX.seur[["percent.mt"]] <- PercentageFeatureSet(GEX.seur, features = MT_gene)
+DIG <- grep("^Tra|^Trb|^Trg|^Trd|^Tcr|^Igm|^Igh|^Igk|^Igl|Jchain|Mzb1|Vpreb|Lars2|Jun|Fos|^Hsp|^Rps|^Rpl|Hbb-|Hba-|^Dnaj|^AY|^AC|^AA|^AW|^BC|^Gm|^Hist|Rik$|-ps",
+            rownames(GEX.seur),value = T)
+CC_gene <- Hmisc::capitalize(tolower(as.vector(unlist(cc.genes.updated.2019))))
+
+
+VariableFeatures(GEX.seur) <- setdiff(VariableFeatures(object = GEX.seur),
+                                                c(MT_gene,
+                                                  DIG, 
+                                                  CC_gene) )
+
+GEX.seur <- RunPCA(GEX.seur, features = VariableFeatures(GEX.seur))
+```
+
+
+```{r}
+length(setdiff(VariableFeatures(object = GEX.seur),
+               c(MT_gene,DIG,CC_gene)))
+setdiff(VariableFeatures(object = GEX.seur),
+        c(MT_gene,DIG,CC_gene))[1:300]
+```
+
+```{r pca,fig.width=11,fig.height=4.5}
+DimPlot(GEX.seur, reduction = "pca",dims = 1:2, group.by = "orig.ident") +
+  DimPlot(GEX.seur, reduction = "pca",dims = 3:4, group.by = "orig.ident")
+```
+
+```{r pcsheat,fig.width=12,fig.height=15}
+DimHeatmap(GEX.seur, dims = 1:12, cells = 1500, balanced = TRUE,ncol = 4)
+```
+
+
+##### decide PCs to use          
+     
+```{r}
+ElbowPlot(GEX.seur,ndims = 50)
+```
+
+
+```{r}
+PCs <- 1:25
+GEX.seur <- FindNeighbors(GEX.seur, dims = PCs, k.param = 20)
+GEX.seur <- FindClusters(GEX.seur, method = 'igraph' ,resolution = 2)
+```
+
+
+### Run UMAP/tSNE    
+
+```{r}
+GEX.seur <- RunTSNE(GEX.seur, dims=PCs, complexity = 100)
+GEX.seur <- RunUMAP(GEX.seur, dims=PCs, n.neighbors = 20, seed.use = 233)
+```
+
+
+```{r fig.width=11.5,fig.height=4.5}
+DimPlot(GEX.seur, reduction = "tsne", label = T) + DimPlot(GEX.seur, reduction = "umap", label = T)
+```
+
+
+## new Annotations        
+
+
+```{r}
+# further remove low-quality/mix-like C24          
+GEX.seur <- subset(GEX.seur, subset=seurat_clusters != 24)
+GEX.seur
+```
+
+```{r fig.width=11.5,fig.height=4.5}
+DimPlot(GEX.seur, reduction = "tsne", label = T) + DimPlot(GEX.seur, reduction = "umap", label = T)
+```
+
+### sort_clusters       
+
+
+```{r fig.width=12,fig.height=7.5}
+FeaturePlot(GEX.seur, features = c(#"Chat"
+                                   "Bnc2","Fut9","Nos1","Vip",
+                                   "Gal","Moxd1","Sst","Calcb",
+                                   "Nmu","Cdh9","Piezo2","Nxph2"),
+            ncol = 4)
+```
+
+
+```{r}
+GEX.seur$sort_clusters <- factor(as.character(GEX.seur$seurat_clusters),
+                                 levels = c(0,1,16,12,6,18,13,         # Chat+Bnc2+ EMNs
+                                            4,11,22,3,10,7,5,20,17,9,   # Nos1+ (Vip+) IMNs
+                                            15,14,             # Gal+ IN1, Moxd1+ IN2
+                                            2,               # Sst+ IN3
+                                            21,23,           # Calcb+Nmu+ IPAN1, Cdh9+ IPAN2
+                                            19,8            # Piezo2+ IPAN3, Nxph2+ IPAN4
+                                            ))
+```
+
+
+#### check local final markers         
+
+
+```{r}
+markers.new.ss <- list(EMN=c("Chat","Bnc2","Tox","Ptprt",
+                       "Gfra2","Oprk1","Adamtsl1", 
+                       "Fbxw15","Fbxw24","Chrna7",
+                       "Satb1","Itga6","Cntnap5b",
+                       "Pgm5","Chgb",
+                       "Nxph1",
+                       "Gabrb1","Glp2r","Nebl",
+                       "Lrrc7",
+                       "Ryr3","Eda",
+                       "Hgf","Lama2","Efnb2",
+                       "Tac1",
+                       "Kctd8",
+                       "Ptn",
+                       "Ntrk2","Penk","Itgb8",
+                       "Fut9","Nfatc1","Egfr","Pdia5",
+                       "Ahr","Mgll",
+                       "Aff3",
+                       "Chrm3"
+                       ),
+                 IMN=c("Nos1","Kcnab1",
+                       "Gfra1","Etv1",
+                       "Man1a","Airn",
+                       "Adcy2",
+                       "Col25a1",
+                       "Cmah","Creb5","Vip","Pde1a",
+                       "Ebf1","Gpc5","Mid1","Igfbp5",
+                       "Ppara",
+                       "Pcdh11x","Adcy8","Grp"
+                       ),
+                 IN=c("Npas3","Synpr","St18","Gal",
+                      "Nova1",
+                      "Cdh10","Kcnk13",
+                      "Neurod6","Moxd1","Sctr",
+                      "Piezo1","Vipr2","Adamts9","Sst","Kcnn2"
+                      ),
+                 IPAN=c("Calb2","Adcy1","Calcb","Nmu","Adgrg6","Pcdh10",
+                        "Ngfr","Galr1","Il7","Aff2",
+                        "Gpr149","Itgb6","Met","Itgbl1",
+                        
+                        "Cdh6","Cdh8",
+                        "Clstn2","Ano2","Ntrk3",
+                        "Cpne4","Vwc2l","Cdh9",
+                        "Car10","Dcc",
+                        "Scgn",
+                        "Vcan","Cck","Piezo2","Kcnh7",
+                        "Rerg","Bmpr1b","Skap1","Ntng1",
+                        "Tafa2","Nxph2"))
+```
+
+
+```{r}
+check.markers.ss <- as.vector(unlist(markers.new.ss))
+check.markers.ss
+```
+
+
+```{r fig.height=5.5, fig.width=16.5}
+
+pm.sort <- DotPlot(GEX.seur, features = check.markers.ss[check.markers.ss %in% rownames(GEX.seur)], group.by = "sort_clusters",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 9.15))+ scale_y_discrete(limits=rev) 
+pm.sort
+
+```
+
+
+### newAnno          
+
+
+```{r}
+# Anno1 is exactly as same as in Cell2020 fig.2a
+GEX.seur$Anno1 <- GEX.seur$Annotation
+```
+
+
+```{r}
+# Anno2 is modified in another version of ENC, ref to NatNeur2021 SI P21 data and a few local datasets 
+GEX.seur$Anno2 <- as.character(GEX.seur$seurat_clusters)
+
+GEX.seur$Anno2[GEX.seur$Anno2 %in% c(0,1,16)] <- "EMN1"
+GEX.seur$Anno2[GEX.seur$Anno2 %in% c(12)] <- "EMN2"
+GEX.seur$Anno2[GEX.seur$Anno2 %in% c(6)] <- "EMN3"
+GEX.seur$Anno2[GEX.seur$Anno2 %in% c(18)] <- "EMN4"
+GEX.seur$Anno2[GEX.seur$Anno2 %in% c(13)] <- "EMN5"
+
+GEX.seur$Anno2[GEX.seur$Anno2 %in% c(4,11,22)] <- "IMN1"
+GEX.seur$Anno2[GEX.seur$Anno2 %in% c(3,10,7,5)] <- "IMN2"
+GEX.seur$Anno2[GEX.seur$Anno2 %in% c(17,20)] <- "IMN3"
+GEX.seur$Anno2[GEX.seur$Anno2 %in% c(9)] <- "IMN4"
+
+GEX.seur$Anno2[GEX.seur$Anno2 %in% c(15)] <- "IN1"
+GEX.seur$Anno2[GEX.seur$Anno2 %in% c(14)] <- "IN2"
+GEX.seur$Anno2[GEX.seur$Anno2 %in% c(2)] <- "IN3"
+
+GEX.seur$Anno2[GEX.seur$Anno2 %in% c(21)] <- "IPAN1"
+GEX.seur$Anno2[GEX.seur$Anno2 %in% c(23)] <- "IPAN2"
+GEX.seur$Anno2[GEX.seur$Anno2 %in% c(19)] <- "IPAN3"
+GEX.seur$Anno2[GEX.seur$Anno2 %in% c(8)] <- "IPAN4"
+
+GEX.seur$Anno2 <- factor(GEX.seur$Anno2)
+
+```
+
+
+
+
+```{r fig.width=12,fig.height=4.5}
+DimPlot(GEX.seur, reduction = "umap", label = T, group.by = "Anno1", label.size = 2.45)  +
+  DimPlot(GEX.seur, reduction = "umap", label = T, group.by = "Anno2", label.size = 3.25)
+``` 
+
+
+
+```{r paged.print=FALSE}
+head(GEX.seur@meta.data)
+```
+
+
+```{r fig.width=12.5,fig.height=4.5}
+DimPlot(GEX.seur, reduction = "umap", label = T, group.by = "Anno1", label.size = 2.35)  +
+  DimPlot(GEX.seur, reduction = "umap", label = T, group.by = "Anno2", label.size = 3.5)
+```  
+
+
+```{r fig.height=5.5, fig.width=16.5}
+
+pm.A2 <- DotPlot(GEX.seur, features = check.markers.ss[check.markers.ss %in% rownames(GEX.seur)], group.by = "Anno2",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 9.15))+ scale_y_discrete(limits=rev) 
+pm.A2
+
+```
+
+
+```{r}
+#saveRDS(GEX.seur,"ss2_neur.newAnno2024.rds")
+```
+
+
+
+
+
+
+
+
+
+
+
+

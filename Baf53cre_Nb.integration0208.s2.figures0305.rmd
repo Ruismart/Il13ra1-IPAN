@@ -1,0 +1,977 @@
+---
+output: 
+  html_document: 
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+---
+
+
+# sn-ENS neuron integration       
+
+
+several figures for each batch               
+
+
+```{r message=FALSE, warning=FALSE}
+source("/Shared_win/projects/RNA_normal/analysis.10x.r")
+```
+
+
+## load integrated obj                      
+
+
+```{r}
+GEX.seur <- readRDS("../integration_Nb5d/sn10x_WYS.sct_anno.s.rds")
+GEX.seur
+```
+
+```{r}
+ref.seur <- readRDS("../../20230704_10x_SZJ/analysis_ref/GSE149524.P21.integration_Anno.s.rds")
+ref.seur
+```
+
+
+
+```{r}
+# define intAnno1/2 colors
+color.A1 <- c("#678BB1","#8AB6CE","#3975C1","#669FDF","#4CC1BD",
+              "#BF7E6B","#D46B35","#F19258","#FF8080",
+              "#BDAE8D","#BD66C4","#C03778",
+              "#97BA59","#DFAB16","#2BA956","#9FE727")
+
+color.A2 <- c("#678BB1","#8AB6CE","#3975C1","#669FDF","#4CC1BD",
+              "#BF7E6B","#D46B35","#F19258","#FF8080",
+              "#BDAE8D","#BD66C4","#C03778",
+              "#97BA59","#C4D116", "#DFAB16","#EDE25A", "#2BA956","#9FE727")
+
+
+# define batch/condition colors
+color.cnt <- scales::hue_pal()(4)[c(2,1,4,3)]
+
+color.test1 <- color.cnt[1:2]
+color.test2 <- color.cnt[3:4]
+
+## define feature colors
+# Cell2020     
+material.heat = function(n){
+  colorRampPalette(
+    c(
+      "#283593", # indigo 800
+      "#3F51B5", # indigo
+      "#2196F3", # blue
+      "#00BCD4", # cyan
+      "#4CAF50", # green
+      "#8BC34A", # light green
+      "#CDDC39", # lime
+      "#FFEB3B", # yellow
+      "#FFC107", # amber
+      "#FF9800", # orange
+      "#FF5722"  # deep orange
+    )
+  )(n)
+}
+
+# Immunity2019, na gray
+colors.Immunity <-c("#191970","#121285","#0C0C9A","#0707B0","#0101C5","#0014CF","#0033D3","#0053D8","#0072DD","#0092E1","#00B2E6",
+                  "#00D1EB","#23E8CD","#7AF17B","#D2FA29","#FFEB00","#FFC300","#FF9B00","#FF8400","#FF7800","#FF6B00","#FF5F00","#FF5300",
+                  "#FF4700","#F73B00","#EF2E00","#E62300","#DD1700","#D50B00","#CD0000")
+
+
+# NatNeur2021, sc-neurons
+color.ref <- c("#8AB6CE","#678BB1","#3975C1","#4CC1BD",
+               "#C03778","#97BA59","#DFAB16","#BF7E6B",
+               "#D46B35","#BDAE8D","#BD66C4","#2BA956",
+               "#FF8080","#FF8080","#FF8080","#FF0000")
+```
+
+
+```{r}
+write.table(color.A1, "figures.integration/color.A1.txt", col.names = F, row.names = F, quote = F)
+write.table(color.A2, "figures.integration/color.A2.txt", col.names = F, row.names = F, quote = F)
+
+write.table(color.cnt, "figures.integration/color.condition.txt", col.names = F, row.names = F, quote = F)
+```
+
+
+```{r}
+scales::show_col(color.A1)
+scales::show_col(color.A2)
+
+scales::show_col(color.cnt)
+```
+
+
+
+```{r fig.width=11.5,fig.height=4.5}
+cowplot::plot_grid(
+DimPlot(GEX.seur, reduction = "umap", group.by = "intAnno1", label = T, label.size = 3.25,repel = F, pt.size = 0.05,
+        cols = color.A1),
+  DimPlot(GEX.seur, label = F, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "cnt",
+        cols = color.cnt) ,
+rel_widths = c(4.8,5),
+ncol = 2)
+```
+
+
+
+```{r fig.width=12,fig.height=4.5}
+cowplot::plot_grid(
+DimPlot(GEX.seur, reduction = "umap", group.by = "intAnno2", label = T, label.size = 2.65,repel = F, pt.size = 0.05,
+        cols = color.A2),
+  DimPlot(GEX.seur, label = F, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "cnt",
+        cols = color.cnt) ,
+rel_widths = c(4.85,5),
+ncol = 2)
+```
+
+
+```{r fig.width=10.5,fig.height=4.5}
+DimPlot(ref.seur, reduction = "umap", label = T, group.by = "Anno1", cols = color.ref) +
+  DimPlot(ref.seur, reduction = "umap", label = T, group.by = "Anno2")
+```
+
+```{r eval=FALSE, include=FALSE}
+pdf("./figures.integration/check.NatNeur2021/umap.NatNeur2021_GSE149524.P21.integration.pdf",
+    width = 11.5, height = 4.8)
+DimPlot(ref.seur, reduction = "umap", label = T, group.by = "Anno1", cols = color.ref) +
+  DimPlot(ref.seur, reduction = "umap", label = T, group.by = "Anno2")
+dev.off()
+```
+
+
+
+### CTL_CKO             
+
+
+```{r}
+test2.seur <- subset(GEX.seur, subset= cnt %in% c("Nb5d.CTL","Nb5d.CKO"))
+test2.seur
+```
+
+```{r}
+DefaultAssay(test2.seur)
+```
+
+```{r}
+test2.seur <- ScaleData(test2.seur, features = rownames(test2.seur))
+```
+
+
+
+```{r fig.width=11.5,fig.height=4.5}
+cowplot::plot_grid(
+DimPlot(test2.seur, reduction = "umap", group.by = "intAnno1", label = T, label.size = 3.25,repel = F, pt.size = 0.15,
+        cols = color.A1),
+  DimPlot(test2.seur, label = F, pt.size = 0.15, repel = F, reduction = 'umap', group.by = "cnt",
+        cols = color.test2) ,
+rel_widths = c(4.8,5),
+ncol = 2)
+```
+
+
+
+```{r fig.width=12,fig.height=4.5}
+cowplot::plot_grid(
+DimPlot(test2.seur, reduction = "umap", group.by = "intAnno2", label = T, label.size = 2.65,repel = F, pt.size = 0.15,
+        cols = color.A2),
+  DimPlot(test2.seur, label = F, pt.size = 0.15, repel = F, reduction = 'umap', group.by = "cnt",
+        cols = color.test2) ,
+rel_widths = c(4.85,5),
+ncol = 2)
+```
+
+
+## composition           
+            
+(processed in s1)         
+
+
+
+## final markers                
+
+
+(pass)               
+                    
+           
+           
+            
+## plot0727              
+                
+             
+repeat plot in 20230727                     
+            
+           
+abreast violin plot to show markers: Il13ra1, Il4ra, Calca, Calcb, Nmu, Chat         
+modified violins and dots            
+CTL, CKO separated       
+add wiocox.test in each intAnno           
+
+
+```{r paged.print=FALSE}
+head(test2.seur@meta.data)
+```
+
+
+### mod metadata         
+
+
+#### cnt1                   
+
+```{r}
+# cnt1 as PBS/INF           
+test2.seur$cnt1 <- as.character(test2.seur$cnt)
+
+test2.seur$cnt1 <- gsub("Nb5d.","",test2.seur$cnt1)
+
+test2.seur$cnt1 <- factor(test2.seur$cnt1,
+                          levels = c("CTL","CKO"))
+
+head(test2.seur$cnt1)
+```
+
+
+#### cnt2       
+
+
+```{r}
+levels(test2.seur$intAnno1)
+```
+
+```{r}
+level.cnt2 <- as.vector(sapply(levels(test2.seur$intAnno1),function(x){
+  paste0(x,c(".CTL",".CKO"))
+}))
+level.cnt2
+```
+
+```{r}
+# for violin comparison
+list.cnt2 <- lapply(levels(test2.seur$intAnno1),function(x){
+  paste0(x,c(".CTL",".CKO"))
+})
+list.cnt2
+```
+
+
+```{r}
+# cnt2 as intAnno1.PBS/INF
+test2.seur$cnt2 <- factor(paste0(as.character(test2.seur$intAnno1),
+                               ".",
+                               as.character(test2.seur$cnt1)),
+                        levels = level.cnt2)
+
+```
+
+
+```{r}
+head(test2.seur$cnt2)
+```
+
+
+### DEGs                        
+
+
+```{r}
+# DEGs 
+df_test2.DEGs_new <- read.csv("../integration_Nb5d/Baf53cre_Nb.DEGs.CTLvsCKO.intAnno2.csv")
+df_test2.DEGs_new$cluster <- factor(df_test2.DEGs_new$cluster,
+                                    levels = c("Nb5d.CTL","Nb5d.CKO"))
+head(df_test2.DEGs_new)
+```
+
+
+```{r}
+names_new <- unique(df_test2.DEGs_new$intAnno2)
+names_new
+```
+
+```{r}
+options("max.print")
+```
+
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+## cut1
+cut.padj = 0.05
+cut.log2FC = 0.3  
+  
+cut.pct1 = 0.1
+
+df_test2.DEGs_new %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(intAnno2,cluster) %>% filter ( intAnno2 == "IPAN1") %>% as.data.frame()
+
+df_test2.DEGs_new %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(intAnno2,cluster) %>% filter ( intAnno2 == "IPAN2") %>% as.data.frame()  
+```
+
+
+```{r eval=FALSE, include=FALSE}
+for(n1 in names_new){
+  for(n2 in c("CTL","CKO")){
+    
+    up.n <- (df_test2.DEGs_new %>% filter(p_val_adj < cut.padj &
+                                            abs(avg_log2FC) > cut.log2FC &
+                                            pct.1 > cut.pct1) %>%
+               filter(intAnno2 == n1, cluster == paste0("Nb5d.",n2) ))$gene
+    
+    write.table(up.n, paste0("./figures.integration/CTLvsCKO.plot/DEGs.GO/cut1.padj_0.05.log2FC_0.3/cut1.DEGs.",n1,"_",n2,"up.txt"),
+                row.names = F, col.names = F, quote = F)
+    
+  }
+}
+```
+
+
+```{r eval=FALSE, include=FALSE}
+write.csv(df_test2.DEGs_new %>% filter(p_val_adj < cut.padj &
+                                         abs(avg_log2FC) > cut.log2FC &
+                                         pct.1 > cut.pct1) %>%
+            group_by(intAnno2,cluster) %>%
+            summarise(up.DEGs = n()) %>% as.data.frame(), "./figures.integration/CTLvsCKO.plot/DEGs.GO/CTLvsCKO.DEGs.cut1.stat.csv")
+```
+
+```{r}
+pp.stat.DEG <- list()
+```
+
+
+```{r}
+pp.stat.DEG[[1]] <- df_test2.DEGs_new %>% filter(p_val_adj < cut.padj & 
+                           abs(avg_log2FC) > cut.log2FC & 
+                           pct.1 > cut.pct1) %>%
+  group_by(intAnno2,cluster) %>%
+  summarise(up.DEGs = n()) %>% as.data.frame() %>%
+  ggplot(aes(x=intAnno2, y=up.DEGs, color = cluster)) +
+  geom_bar(stat="summary", fun="mean", position = position_dodge(0.75), width = 0.58, fill="white") +
+  theme_classic(base_size = 15) +
+  scale_color_manual(values = color.test2, name="") +
+  labs(title=paste0("up.DEGs stat, pct.1>",cut.pct1,", padj<",cut.padj,", |log2FC|>",cut.log2FC), y = "Proportion") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6),
+        title =element_text(size=12, face='bold'))
+```
+
+```{r fig.width=6.75, fig.height=4}
+pp.stat.DEG[[1]]
+```
+
+```{r eval=FALSE, include=FALSE}
+pdf("./figures.integration/CTLvsCKO.plot/DEGs.GO/CTLvsCKO.DEGs.cut1.stat.pdf",
+    width = 6,75, height = 4)
+pp.stat.DEG[[1]]
+dev.off()
+```
+
+
+```{r}
+DEGs.IPAN1 <- (df_test2.DEGs_new %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(intAnno2,cluster) %>% filter ( intAnno2 == "IPAN1") %>% as.data.frame())$gene
+
+DEGs.IPAN2 <- (df_test2.DEGs_new %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(intAnno2,cluster) %>% filter ( intAnno2 == "IPAN2") %>% as.data.frame())$gene
+```
+
+
+```{r fig.height=5.5, fig.width=4.8}
+pp.cut1.IPAN1 <- DoHeatmap(subset(test2.seur, subset = intAnno1 == "IPAN1"), slot = "scale.data", disp.min = -1, disp.max = 2,
+          features = DEGs.IPAN1[c(1:104,105:133)], group.by = "cnt1",
+          group.colors = color.test2) + guides(color=FALSE) + theme(axis.text.y = element_text(size=2.5),
+                                                                         plot.margin = unit(c(0.3,0.3,0.3,0.3),"cm")) +
+  labs(title = "cut1, IPAN1")
+pp.cut1.IPAN1
+```
+
+
+```{r fig.height=3.2, fig.width=4.8}
+pp.cut1.IPAN2 <- DoHeatmap(subset(test2.seur, subset = intAnno1 == "IPAN2"), slot = "scale.data", disp.min = -1, disp.max = 2,
+          features = DEGs.IPAN2[c(1:39,40:46)], group.by = "cnt1",
+          group.colors = color.test2) + guides(color=FALSE) + theme(axis.text.y = element_text(size=2.5),
+                                                                         plot.margin = unit(c(0.3,0.3,0.3,0.3),"cm")) +
+  labs(title = "cut1, IPAN2")
+pp.cut1.IPAN2
+```
+
+```{r eval=FALSE, include=FALSE}
+#
+pdf("./figures.integration/CTLvsCKO.plot/DEGs.GO/CTLvsCKO.DEGs.cut1.IPAN1.heatmap.pdf",
+    width = 4.8, height = 5.5)
+pp.cut1.IPAN1
+dev.off()
+
+#
+pdf("./figures.integration/CTLvsCKO.plot/DEGs.GO/CTLvsCKO.DEGs.cut1.IPAN2.heatmap.pdf",
+    width = 4.8, height = 3.2)
+pp.cut1.IPAN2
+dev.off()
+
+```
+
+
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+## cut2
+cut.padj = 0.01
+cut.log2FC = log2(1.5)  
+  
+cut.pct1 = 0.1
+
+df_test2.DEGs_new %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(intAnno2,cluster) %>% filter ( intAnno2 == "IPAN1") %>% as.data.frame()
+df_test2.DEGs_new %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(intAnno2,cluster) %>% filter ( intAnno2 == "IPAN2") %>% as.data.frame()  
+```
+
+
+```{r eval=FALSE, include=FALSE}
+for(n1 in names_new){
+  for(n2 in c("CTL","CKO")){
+    
+    up.n <- (df_test2.DEGs_new %>% filter(p_val_adj < cut.padj &
+                                            abs(avg_log2FC) > cut.log2FC &
+                                            pct.1 > cut.pct1) %>%
+               filter(intAnno2 == n1, cluster == paste0("Nb5d.",n2) ))$gene
+    
+    write.table(up.n, paste0("./figures.integration/CTLvsCKO.plot/DEGs.GO/cut2.padj_0.01.FC_1.5/cut2.DEGs.",n1,"_",n2,"up.txt"),
+                row.names = F, col.names = F, quote = F)
+    
+  }
+}
+```
+
+
+```{r eval=FALSE, include=FALSE}
+write.csv(df_test2.DEGs_new %>% filter(p_val_adj < cut.padj &
+                                         abs(avg_log2FC) > cut.log2FC &
+                                         pct.1 > cut.pct1) %>%
+            group_by(intAnno2,cluster) %>%
+            summarise(up.DEGs = n()) %>% as.data.frame(), "./figures.integration/CTLvsCKO.plot/DEGs.GO/CTLvsCKO.DEGs.cut2.stat.csv")
+```
+
+```{r}
+#pp.stat.DEG <- list()
+```
+
+
+```{r}
+pp.stat.DEG[[2]] <- df_test2.DEGs_new %>% filter(p_val_adj < cut.padj & 
+                           abs(avg_log2FC) > cut.log2FC & 
+                           pct.1 > cut.pct1) %>%
+  group_by(intAnno2,cluster) %>%
+  summarise(up.DEGs = n()) %>% as.data.frame() %>%
+  ggplot(aes(x=intAnno2, y=up.DEGs, color = cluster)) +
+  geom_bar(stat="summary", fun="mean", position = position_dodge(0.75), width = 0.58, fill="white") +
+  theme_classic(base_size = 15) +
+  scale_color_manual(values = color.test2, name="") +
+  labs(title=paste0("up.DEGs stat, pct.1>",cut.pct1,", padj<",cut.padj,", |log2FC|>","log2(1.5)"), y = "Proportion") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6),
+        title =element_text(size=12, face='bold'))
+```
+
+```{r fig.width=6.75, fig.height=4}
+pp.stat.DEG[[2]]
+```
+
+```{r eval=FALSE, include=FALSE}
+pdf("./figures.integration/CTLvsCKO.plot/DEGs.GO/CTLvsCKO.DEGs.cut2.stat.pdf",
+    width = 6,75, height = 4)
+pp.stat.DEG[[2]]
+dev.off()
+```
+
+
+```{r}
+DEGs.IPAN1 <- (df_test2.DEGs_new %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(intAnno2,cluster) %>% filter ( intAnno2 == "IPAN1") %>% as.data.frame())$gene
+
+DEGs.IPAN2 <- (df_test2.DEGs_new %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(intAnno2,cluster) %>% filter ( intAnno2 == "IPAN2") %>% as.data.frame())$gene
+```
+
+
+```{r fig.height=4, fig.width=4.8}
+pp.cut2.IPAN1 <- DoHeatmap(subset(test2.seur, subset = intAnno1 == "IPAN1"), slot = "scale.data", disp.min = -1, disp.max = 2,
+          features = DEGs.IPAN1[c(1:58,59:69)], group.by = "cnt1",
+          group.colors = color.test2) + guides(color=FALSE) + theme(axis.text.y = element_text(size=2.5),
+                                                                         plot.margin = unit(c(0.3,0.3,0.3,0.3),"cm")) +
+  labs(title = "cut2, IPAN1")
+pp.cut2.IPAN1
+```
+
+
+```{r fig.height=2.4, fig.width=4.8}
+pp.cut2.IPAN2 <- DoHeatmap(subset(test2.seur, subset = intAnno1 == "IPAN2"), slot = "scale.data", disp.min = -1, disp.max = 2,
+          features = DEGs.IPAN2[c(1:30,31:33)], group.by = "cnt1",
+          group.colors = color.test2) + guides(color=FALSE) + theme(axis.text.y = element_text(size=2.5),
+                                                                         plot.margin = unit(c(0.3,0.3,0.3,0.3),"cm")) +
+  labs(title = "cut2, IPAN2")
+pp.cut2.IPAN2
+```
+
+
+```{r eval=FALSE, include=FALSE}
+#
+pdf("./figures.integration/CTLvsCKO.plot/DEGs.GO/CTLvsCKO.DEGs.cut2.IPAN1.heatmap.pdf",
+    width = 4.8, height = 4)
+pp.cut2.IPAN1
+dev.off()
+
+#
+pdf("./figures.integration/CTLvsCKO.plot/DEGs.GO/CTLvsCKO.DEGs.cut2.IPAN2.heatmap.pdf",
+    width = 4.8, height = 2.4)
+pp.cut2.IPAN2
+dev.off()
+
+```
+
+
+### markers            
+
+
+```{r}
+check.plot <- c("Il13ra1","Il4ra","Calca","Calcb",
+                "Nmu","Chat")
+
+vln_df <- data.frame(test2.seur@meta.data,
+                     t(test2.seur@assays$RNA@data[check.plot,]))
+
+head(vln_df)
+```
+
+
+```{r}
+pp.vln <- list()
+
+pp.vln <- lapply(1:5, function(jj){
+  pp.tmp <- ggplot(vln_df, aes(x = cnt2, y= get(check.plot[jj]), fill = cnt1)) +
+    geom_violin(trim = TRUE, scale = 'width', lwd=0.1) +
+    labs(x="",y="",title=check.plot[jj]) + NoLegend() +
+    #scale_fill_manual(values = ggsci::pal_d3("category20c")(20)[c(1,2)]) +
+    scale_fill_manual(values = color.test2) +
+    theme(axis.title.x = element_blank(),
+          axis.text.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          axis.line = element_line(color = "black", size = 0.1),
+          panel.grid = element_blank(),
+          panel.border = element_blank(),
+          panel.background = element_blank(),
+          plot.margin = unit(c(0.03,0.1,0,0.1),"cm")) + coord_cartesian(ylim=c(0,4.35)) + geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1) +
+    stat_summary(fun.y=mean, geom="point", shape=23, size=0.65, color="black", fill="white", alpha=0.75)
+    
+})
+
+pp.vln[[6]] <- ggplot(vln_df, aes(x = cnt2, y= get(check.plot[6]), fill = cnt1)) +
+    geom_violin(trim = TRUE, scale = 'width', lwd=0.1) +
+    labs(x="",y="",title=check.plot[6]) + NoLegend() +
+    #scale_fill_manual(values = ggsci::pal_d3("category20c")(20)[c(1,2)]) +
+    scale_fill_manual(values = color.test2) +
+    theme(axis.title.x = element_blank(),
+          #axis.text.x = element_blank(),
+          axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 8.1),
+          #axis.ticks.x = element_blank(),
+          axis.ticks.x = element_line(color = "black",size=0.05),
+          axis.line = element_line(color = "black", size = 0.1),
+          panel.grid = element_blank(),
+          panel.border = element_blank(),
+          panel.background = element_blank(),
+          plot.margin = unit(c(0.03,0.1,0,0.1),"cm")) + coord_cartesian(ylim=c(0,4.35)) + geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1) +
+    stat_summary(fun.y=mean, geom="point", shape=23, size=0.65, color="black", fill="white", alpha=0.75)
+
+```
+
+```{r fig.height=6, fig.width=8, message=FALSE, warning=FALSE}
+cowplot::plot_grid(
+  plotlist = pp.vln,
+  ncol = 1,
+  rel_heights = c(rep(1,5),1.55))
+```
+
+
+```{r}
+pp.vln.s <- list()
+
+pp.vln.s <- lapply(1:5, function(jj){
+  pp.tmp <- ggplot(vln_df, aes(x = cnt2, y= get(check.plot[jj]), fill = cnt1)) +
+    geom_violin(trim = TRUE, scale = 'width', lwd=0.1) +
+    labs(x="",y="",title=check.plot[jj]) + NoLegend() +
+    #scale_fill_manual(values = ggsci::pal_d3("category20c")(20)[c(1,2)]) +
+    scale_fill_manual(values = color.test2) +
+    theme(axis.title.x = element_blank(),
+          axis.text.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          axis.line = element_line(color = "black", size = 0.1),
+          panel.grid = element_blank(),
+          panel.border = element_blank(),
+          panel.background = element_blank(),
+          plot.margin = unit(c(0.03,0.1,0,0.1),"cm")) + coord_cartesian(ylim=c(0,4.35)) + geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1) +
+    stat_summary(fun.y=mean, geom="point", shape=23, size=0.45, color="black", fill="white", alpha=0.75) +
+    stat_compare_means(aes(label= ..p.signif..),
+                       method = "wilcox.test",
+                       comparisons = list.cnt2,
+                       label.y = c(rep(3.75,16)),
+                       size = 2.5)
+    
+})
+
+pp.vln.s[[6]] <- ggplot(vln_df, aes(x = cnt2, y= get(check.plot[6]), fill = cnt1)) +
+    geom_violin(trim = TRUE, scale = 'width', lwd=0.1) +
+    labs(x="",y="",title=check.plot[6]) + NoLegend() +
+    #scale_fill_manual(values = ggsci::pal_d3("category20c")(20)[c(1,2)]) +
+  scale_fill_manual(values = color.test2) +
+    theme(axis.title.x = element_blank(),
+          #axis.text.x = element_blank(),
+          axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 8.1),
+          #axis.ticks.x = element_blank(),
+          axis.ticks.x = element_line(color = "black",size=0.05),
+          axis.line = element_line(color = "black", size = 0.1),
+          panel.grid = element_blank(),
+          panel.border = element_blank(),
+          panel.background = element_blank(),
+          plot.margin = unit(c(0.03,0.1,0,0.1),"cm")) + coord_cartesian(ylim=c(0,4.35)) + geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1) +
+    stat_summary(fun.y=mean, geom="point", shape=23, size=0.45, color="black", fill="white", alpha=0.75) +
+    stat_compare_means(aes(label= ..p.signif..),
+                       method = "wilcox.test",
+                       comparisons = list.cnt2,
+                       label.y = c(rep(3.75,16)),
+                       size = 2.5)
+
+```
+
+
+```{r fig.height=6, fig.width=8, message=FALSE, warning=FALSE}
+cowplot::plot_grid(
+  plotlist = pp.vln.s,
+  ncol = 1,
+  rel_heights = c(rep(1,5),1.55))
+```
+
+
+
+```{r}
+pp.vln.a <- list()
+
+pp.vln.a <- lapply(1:5, function(jj){
+  pp.tmp <- ggplot(vln_df, aes(x = intAnno1, y= get(check.plot[jj]), fill = intAnno1)) +
+    geom_violin(trim = TRUE, scale = 'width', lwd=0.1) +
+    labs(x="",y="",title=check.plot[jj]) + NoLegend() +
+    scale_fill_manual(values = color.A1) +
+    theme(axis.title.x = element_blank(),
+          axis.text.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          axis.line = element_line(color = "black", size = 0.1),
+          panel.grid = element_blank(),
+          panel.border = element_blank(),
+          panel.background = element_blank(),
+          plot.margin = unit(c(0.03,0.1,0,0.1),"cm")) + coord_cartesian(ylim=c(0,4.35)) + geom_boxplot(outlier.size = 0, fill="white", width=0.12, size=0.1) +
+    stat_summary(fun.y=mean, geom="point", shape=23, size=0.45, color="black", fill="white", alpha=0.75)
+    
+})
+
+pp.vln.a[[6]] <- ggplot(vln_df, aes(x = intAnno1, y= get(check.plot[6]), fill = intAnno1)) +
+    geom_violin(trim = TRUE, scale = 'width', lwd=0.1) +
+    labs(x="",y="",title=check.plot[6]) + NoLegend() +
+    scale_fill_manual(values = color.A1) +
+    theme(axis.title.x = element_blank(),
+          #axis.text.x = element_blank(),
+          axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 8.1),
+          #axis.ticks.x = element_blank(),
+          axis.ticks.x = element_line(color = "black",size=0.05),
+          axis.line = element_line(color = "black", size = 0.1),
+          panel.grid = element_blank(),
+          panel.border = element_blank(),
+          panel.background = element_blank(),
+          plot.margin = unit(c(0.03,0.1,0,0.1),"cm")) + coord_cartesian(ylim=c(0,4.35)) + geom_boxplot(outlier.size = 0, fill="white", width=0.12, size=0.1) +
+    stat_summary(fun.y=mean, geom="point", shape=23, size=0.45, color="black", fill="white", alpha=0.75)
+
+```
+
+
+```{r fig.height=6, fig.width=6, message=FALSE, warning=FALSE}
+cowplot::plot_grid(
+  plotlist = pp.vln.a,
+  ncol = 1,
+  rel_heights = c(rep(1,5),1.4))
+```
+
+
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+#
+pdf("./figures.integration/CTLvsCKO.plot/Markers/check.markers.violin1.pdf",
+    width = 8, height = 6)
+cowplot::plot_grid(
+  plotlist = pp.vln,
+  ncol = 1,
+  rel_heights = c(rep(1,5),1.55))
+dev.off()
+
+#
+pdf("./figures.integration/CTLvsCKO.plot/Markers/check.markers.violin2.pdf",
+    width = 8, height = 6.5)
+cowplot::plot_grid(
+  plotlist = pp.vln.s,
+  ncol = 1,
+  rel_heights = c(rep(1,5),1.55))
+dev.off()
+
+#
+pdf("./figures.integration/CTLvsCKO.plot/Markers/check.markers.violin3.pdf",
+    width = 6, height = 6)
+cowplot::plot_grid(
+  plotlist = pp.vln.a,
+  ncol = 1,
+  rel_heights = c(rep(1,5),1.4))
+dev.off()
+```
+
+
+```{r fig.width=9, fig.height=5}
+FeaturePlot(test2.seur, features = check.plot, ncol = 3)
+```
+
+```{r eval=FALSE, include=FALSE}
+#
+pdf("./figures.integration/CTLvsCKO.plot/Markers/check.markers.featureplot.pdf",
+    width = 9.6, height = 5)
+FeaturePlot(test2.seur, features = check.plot, ncol = 3)
+dev.off()
+
+pdf("./figures.integration/CTLvsCKO.plot/Markers/check.markers.featureplot.small.pdf",
+    width = 9.6, height = 5)
+FeaturePlot(test2.seur, features = check.plot, ncol = 3, raster = T, pt.size = 3.5)
+dev.off()
+```
+
+
+```{r fig.width=9, fig.height=5}
+FeaturePlot(subset(test2.seur, subset = cnt1 == "CTL"), features = check.plot, ncol = 3)
+```
+
+```{r fig.width=9, fig.height=5}
+FeaturePlot(test2.seur, features = check.plot, ncol = 3, pt.size = 1)
+FeaturePlot(subset(test2.seur, subset = cnt1 == "CTL"), features = check.plot, ncol = 3, pt.size = 1)
+```
+
+```{r fig.width=9, fig.height=5}
+FeaturePlot(test2.seur, features = check.plot, ncol = 3, pt.size = 2)
+FeaturePlot(subset(test2.seur, subset = cnt1 == "CTL"), features = check.plot, ncol = 3, pt.size = 2)
+```
+
+```{r fig.width=7.6, fig.height=3.6}
+DotPlot(test2.seur, features = rev(check.plot), group.by = "cnt2")  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+```
+
+
+```{r fig.width=7.6, fig.height=3.6}
+DotPlot(test2.seur, features = rev(check.plot), group.by = "cnt2", cols = c("midnightblue","darkorange1"))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+```
+
+```{r eval=FALSE, include=FALSE}
+#
+pdf("./figures.integration/CTLvsCKO.plot/Markers/check.markers.dotplot1a.pdf",
+    width = 7.9, height = 3.6)
+DotPlot(test2.seur, features = rev(check.plot), group.by = "cnt2", cols = c("midnightblue","darkorange1"))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+dev.off()
+
+#
+pdf("./figures.integration/CTLvsCKO.plot/Markers/check.markers.dotplot1b.pdf",
+    width = 7.9, height = 3.6)
+DotPlot(test2.seur, features = rev(check.plot), group.by = "cnt2", cols = material.heat(100))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6)) +
+  scale_color_gradientn(colours  = material.heat(100))
+dev.off()
+
+#
+pdf("./figures.integration/CTLvsCKO.plot/Markers/check.markers.dotplot2a.pdf",
+    width = 6.3, height = 3.6)
+DotPlot(test2.seur, features = rev(check.plot), group.by = "intAnno1", cols = c("midnightblue","darkorange1"))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+dev.off()
+
+#
+pdf("./figures.integration/CTLvsCKO.plot/Markers/check.markers.dotplot2b.pdf",
+    width = 6.3, height = 3.6)
+DotPlot(test2.seur, features = rev(check.plot), group.by = "intAnno1", cols = material.heat(100))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6)) +
+  scale_color_gradientn(colours  = material.heat(100))
+dev.off()
+```
+
+
+#### violin        
+
+```{r}
+pp.IPAN1 <- list()
+```
+
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE, fig.width=2.5,fig.height=4}
+pp.IPAN1[["Nmu"]] <- VlnPlot(subset(test2.seur,subset=intAnno1 %in% c("IPAN1")), assay = "RNA", features = c("Nmu"), group.by = "cnt", ncol = 1, cols = color.test2, pt.size = 0.01,
+                   combine = T) + 
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) +
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) + coord_cartesian(ylim=c(0,5)) + ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.CTL","Nb5d.CKO")),
+                               label.y = c(4.35),
+                               size=3.5
+                               ) + NoLegend()
+pp.IPAN1[["Nmu"]]
+```
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE, fig.width=2.5,fig.height=4}
+pp.IPAN1[["Calcb"]] <- VlnPlot(subset(test2.seur,subset=intAnno1 %in% c("IPAN1")), assay = "RNA", features = c("Calcb"), group.by = "cnt", ncol = 1, cols = color.test2, pt.size = 0.01,
+                   combine = T) + 
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) +
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) + coord_cartesian(ylim=c(0,5)) + ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.CTL","Nb5d.CKO")),
+                               label.y = c(3.25),
+                               size=3.5
+                               ) + NoLegend()
+pp.IPAN1[["Calcb"]]
+```
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE, fig.width=2.5,fig.height=4}
+pp.IPAN1[["Calca"]] <- VlnPlot(subset(test2.seur,subset=intAnno1 %in% c("IPAN1")), assay = "RNA", features = c("Calca"), group.by = "cnt", ncol = 1, cols = color.test2, pt.size = 0,
+                   combine = T) + 
+    #geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) +
+  geom_point(size=0.3) +
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) + coord_cartesian(ylim=c(0,5)) + ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.CTL","Nb5d.CKO")),
+                               label.y = c(1.8),
+                               size=3.5
+                               ) + NoLegend()
+pp.IPAN1[["Calca"]]
+```
+
+
+```{r eval=FALSE, include=FALSE}
+#
+pdf("./figures.integration/CTLvsCKO.plot/Markers/violin.IPAN1.Nmu.pdf",
+    width = 2.4,height = 4.2)
+pp.IPAN1[["Nmu"]]
+dev.off()
+
+#
+pdf("./figures.integration/CTLvsCKO.plot/Markers/violin.IPAN1.Calcb.pdf",
+    width = 2.4,height = 4.2)
+pp.IPAN1[["Calcb"]]
+dev.off()
+
+#
+pdf("./figures.integration/CTLvsCKO.plot/Markers/violin.IPAN1.Calca.pdf",
+    width = 2.4,height = 4.2)
+pp.IPAN1[["Calca"]]
+dev.off()
+```
+
+
+#### violin-Il13ra1+                    
+
+```{r}
+ppi.IPAN1 <- list()
+```
+
+
+```{r}
+test2.seur$Il13ra1p <- test2.seur@assays$RNA@data["Il13ra1",] >0
+```
+
+
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE, fig.width=2.5,fig.height=4}
+ppi.IPAN1[["Nmu"]] <- VlnPlot(subset(test2.seur,subset=intAnno1 %in% c("IPAN1") & Il13ra1p==TRUE), assay = "RNA", features = c("Nmu"), group.by = "cnt", ncol = 1, cols = color.test2, pt.size = 0.01,
+                   combine = T) + 
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) +
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) + coord_cartesian(ylim=c(0,5)) + ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.CTL","Nb5d.CKO")),
+                               label.y = c(4.35),
+                               size=3.5
+                               ) + NoLegend()
+ppi.IPAN1[["Nmu"]]
+```
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE, fig.width=2.5,fig.height=4}
+ppi.IPAN1[["Calcb"]] <- VlnPlot(subset(test2.seur,subset=intAnno1 %in% c("IPAN1") & Il13ra1p==TRUE), assay = "RNA", features = c("Calcb"), group.by = "cnt", ncol = 1, cols = color.test2, pt.size = 0.01,
+                   combine = T) + 
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) +
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) + coord_cartesian(ylim=c(0,5)) + ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.CTL","Nb5d.CKO")),
+                               label.y = c(3),
+                               size=3.5
+                               ) + NoLegend()
+ppi.IPAN1[["Calcb"]]
+```
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE, fig.width=2.5,fig.height=4}
+ppi.IPAN1[["Calca"]] <- VlnPlot(subset(test2.seur,subset=intAnno1 %in% c("IPAN1") & Il13ra1p==TRUE), assay = "RNA", features = c("Calca"), group.by = "cnt", ncol = 1, cols = color.test2, pt.size = 0,
+                   combine = T) + 
+    #geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) +
+  geom_point(size=0.3) +
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) + coord_cartesian(ylim=c(0,5)) + ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.CTL","Nb5d.CKO")),
+                               label.y = c(1.75),
+                               size=3.5
+                               ) + NoLegend()
+ppi.IPAN1[["Calca"]]
+```
+
+
+```{r eval=FALSE, include=FALSE}
+#
+pdf("./figures.integration/CTLvsCKO.plot/Markers/violin.IPAN1_Il13ra1+.Nmu.pdf",
+    width = 2.4,height = 4.2)
+ppi.IPAN1[["Nmu"]]
+dev.off()
+
+#
+pdf("./figures.integration/CTLvsCKO.plot/Markers/violin.IPAN1_Il13ra1+.Calcb.pdf",
+    width = 2.4,height = 4.2)
+ppi.IPAN1[["Calcb"]]
+dev.off()
+
+#
+pdf("./figures.integration/CTLvsCKO.plot/Markers/violin.IPAN1_Il13ra1+.Calca.pdf",
+    width = 2.4,height = 4.2)
+ppi.IPAN1[["Calca"]]
+dev.off()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

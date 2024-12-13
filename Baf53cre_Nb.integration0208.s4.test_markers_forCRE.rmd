@@ -1,0 +1,599 @@
+---
+output: 
+  html_document: 
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+---
+
+
+# sn-ENS neuron integration      
+
+
+test markers for CRE so that subtypes could be manipulated like specific activation or blockage         
+      
+      
+try entropy score H, also calculate Q|t for each subtype         
+
+
+```{r message=FALSE, warning=FALSE}
+source("/Shared_win/projects/RNA_normal/analysis.10x.r")
+```
+
+
+## load integrated obj                      
+
+
+```{r}
+GEX.seur <- readRDS("../integration_Nb5d/sn10x_WYS.sct_anno.s.rds")
+GEX.seur
+```
+
+```{r}
+ref.seur <- readRDS("../../20230704_10x_SZJ/analysis_ref/GSE149524.P21.integration_Anno.s.rds")
+ref.seur
+```
+
+```{r}
+# define intAnno1/2 colors
+color.A1 <- c("#678BB1","#8AB6CE","#3975C1","#669FDF","#4CC1BD",
+              "#BF7E6B","#D46B35","#F19258","#FF8080",
+              "#BDAE8D","#BD66C4","#C03778",
+              "#97BA59","#DFAB16","#2BA956","#9FE727")
+
+color.A2 <- c("#678BB1","#8AB6CE","#3975C1","#669FDF","#4CC1BD",
+              "#BF7E6B","#D46B35","#F19258","#FF8080",
+              "#BDAE8D","#BD66C4","#C03778",
+              "#97BA59","#C4D116", "#DFAB16","#EDE25A", "#2BA956","#9FE727")
+
+
+# define batch/condition colors
+color.cnt <- scales::hue_pal()(4)[c(2,1,4,3)]
+
+color.test1 <- color.cnt[1:2]
+color.test2 <- color.cnt[3:4]
+
+## define feature colors
+# Cell2020     
+material.heat = function(n){
+  colorRampPalette(
+    c(
+      "#283593", # indigo 800
+      "#3F51B5", # indigo
+      "#2196F3", # blue
+      "#00BCD4", # cyan
+      "#4CAF50", # green
+      "#8BC34A", # light green
+      "#CDDC39", # lime
+      "#FFEB3B", # yellow
+      "#FFC107", # amber
+      "#FF9800", # orange
+      "#FF5722"  # deep orange
+    )
+  )(n)
+}
+
+# Immunity2019, na gray
+colors.Immunity <-c("#191970","#121285","#0C0C9A","#0707B0","#0101C5","#0014CF","#0033D3","#0053D8","#0072DD","#0092E1","#00B2E6",
+                  "#00D1EB","#23E8CD","#7AF17B","#D2FA29","#FFEB00","#FFC300","#FF9B00","#FF8400","#FF7800","#FF6B00","#FF5F00","#FF5300",
+                  "#FF4700","#F73B00","#EF2E00","#E62300","#DD1700","#D50B00","#CD0000")
+
+
+# NatNeur2021, sc-neurons
+color.ref <- c("#8AB6CE","#678BB1","#3975C1","#4CC1BD",
+               "#C03778","#97BA59","#DFAB16","#BF7E6B",
+               "#D46B35","#BDAE8D","#BD66C4","#2BA956",
+               "#FF8080","#FF8080","#FF8080","#FF0000")
+```
+
+
+```{r fig.width=11.5,fig.height=4.5}
+cowplot::plot_grid(
+DimPlot(GEX.seur, reduction = "umap", group.by = "intAnno1", label = T, label.size = 3.25,repel = F, pt.size = 0.05,
+        cols = color.A1),
+  DimPlot(GEX.seur, label = F, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "cnt",
+        cols = color.cnt) ,
+rel_widths = c(4.8,5),
+ncol = 2)
+```
+
+
+
+```{r fig.width=12,fig.height=4.5}
+cowplot::plot_grid(
+DimPlot(GEX.seur, reduction = "umap", group.by = "intAnno2", label = T, label.size = 2.65,repel = F, pt.size = 0.05,
+        cols = color.A2),
+  DimPlot(GEX.seur, label = F, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "cnt",
+        cols = color.cnt) ,
+rel_widths = c(4.85,5),
+ncol = 2)
+```
+
+### PBS_INF             
+
+
+```{r}
+test1.seur <- subset(GEX.seur, subset= cnt %in% c("Nb5d.PBS","Nb5d.INF"))
+test1.seur
+```
+
+
+```{r fig.width=11.5,fig.height=4.5}
+cowplot::plot_grid(
+DimPlot(test1.seur, reduction = "umap", group.by = "intAnno1", label = T, label.size = 3.25,repel = F, pt.size = 0.15,
+        cols = color.A1),
+  DimPlot(test1.seur, label = F, pt.size = 0.15, repel = F, reduction = 'umap', group.by = "cnt",
+        cols = color.test1) ,
+rel_widths = c(4.8,5),
+ncol = 2)
+```
+
+
+
+```{r fig.width=12,fig.height=4.5}
+cowplot::plot_grid(
+DimPlot(test1.seur, reduction = "umap", group.by = "intAnno2", label = T, label.size = 2.65,repel = F, pt.size = 0.15,
+        cols = color.A2),
+  DimPlot(test1.seur, label = F, pt.size = 0.15, repel = F, reduction = 'umap', group.by = "cnt",
+        cols = color.test1) ,
+rel_widths = c(4.85,5),
+ncol = 2)
+```
+
+#### PBS only           
+
+
+```{r}
+PBS.seur <- subset(GEX.seur, subset= cnt %in% c("Nb5d.PBS"))
+PBS.seur
+```
+
+
+```{r fig.width=11.5,fig.height=4.5}
+cowplot::plot_grid(
+DimPlot(PBS.seur, reduction = "umap", group.by = "intAnno1", label = T, label.size = 3.25,repel = F, pt.size = 0.15,
+        cols = color.A1),
+  DimPlot(PBS.seur, label = F, pt.size = 0.15, repel = F, reduction = 'umap', group.by = "cnt",
+        cols = color.test1) ,
+rel_widths = c(4.8,5),
+ncol = 2)
+```
+
+
+
+```{r fig.width=12,fig.height=4.5}
+cowplot::plot_grid(
+DimPlot(PBS.seur, reduction = "umap", group.by = "intAnno2", label = T, label.size = 2.65,repel = F, pt.size = 0.15,
+        cols = color.A2),
+  DimPlot(PBS.seur, label = F, pt.size = 0.15, repel = F, reduction = 'umap', group.by = "cnt",
+        cols = color.test1) ,
+rel_widths = c(4.85,5),
+ncol = 2)
+```
+
+
+### CTL_CKO             
+
+
+```{r}
+#test2.seur <- subset(GEX.seur, subset= cnt %in% c("Nb5d.CTL","Nb5d.CKO"))
+#test2.seur
+```
+
+```{r eval=FALSE, fig.height=4.5, fig.width=11.5, include=FALSE}
+cowplot::plot_grid(
+DimPlot(test2.seur, reduction = "umap", group.by = "intAnno1", label = T, label.size = 3.25,repel = F, pt.size = 0.15,
+        cols = color.A1),
+  DimPlot(test2.seur, label = F, pt.size = 0.15, repel = F, reduction = 'umap', group.by = "cnt",
+        cols = color.test2) ,
+rel_widths = c(4.8,5),
+ncol = 2)
+```
+
+
+```{r eval=FALSE, fig.height=4.5, fig.width=12, include=FALSE}
+cowplot::plot_grid(
+DimPlot(test2.seur, reduction = "umap", group.by = "intAnno2", label = T, label.size = 2.65,repel = F, pt.size = 0.15,
+        cols = color.A2),
+  DimPlot(test2.seur, label = F, pt.size = 0.15, repel = F, reduction = 'umap', group.by = "cnt",
+        cols = color.test2) ,
+rel_widths = c(4.85,5),
+ncol = 2)
+```
+
+
+## markers           
+
+
+##### directly using markers in SCT_intAnno1     
+
+```{r}
+markers.new <- read.csv("../integration_Nb5d/Baf53cre_Nb.markers.SCT_intAnno1.202402.csv")
+markers.new$cluster <- factor(as.character(markers.new$cluster),
+                              levels = levels(GEX.seur$intAnno1))
+head(markers.new)
+```
+
+
+
+### filtering         
+
+
+```{r}
+cut.pct = 0.1
+cut.padj = 0.001
+
+markers.n <- (markers.new %>% filter(pct.1 > cut.pct & p_val_adj < cut.padj))$gene
+markers.n <- unique(markers.n)
+
+#head(markers.n)
+length(markers.n)
+```
+
+
+```{r}
+DIG <- grep("^mt-|^Tra|^Trb|^Trg|^Trd|^Tcr|^Igm|^Igh|^Igk|^Igl|Jchain|Mzb1|Vpreb|^Hsp|^Rps|^Rpl|Hbb-|Hba-|^Dnaj|^Jun|^Fos|^AY|^AA|^AC|^AW|^BC|^Gm|^Hist|Lars2|Rik$|-ps",
+            markers.n,value = T)
+```
+
+
+```{r}
+markers.n <- setdiff(markers.n, DIG)
+length(markers.n)
+```
+
+## calculation          
+
+
+### avg.matrix            
+
+
+```{r}
+mat.n <- AverageExpression(GEX.seur,
+                           assays = "SCT",
+                           features = markers.n,
+                           return.seurat = F,
+                           group.by = "intAnno1",
+                           layer="data")
+
+# AverageExpression() would recover the log2-data, here add log2 back
+mat.n <- log2(mat.n$SCT+1)
+mat.n <- as.data.frame(mat.n)
+```
+
+
+```{r}
+dim(mat.n)
+```
+
+```{r paged.print=FALSE}
+mat.n[1:5,]
+```
+
+
+### entropy             
+
+
+```{r}
+## shanno.entropy
+# ref. https://davetang.org/muse/2013/08/28/tissue-specificity/
+#
+# Q version for specific tissue
+#    https://www.ncbi.nlm.nih.gov/pmc/articles/PMC1088961/
+#     'Measuring tissue specificity with entropy: Qg|t'
+shannon.entropy <- function(p,returnH=TRUE,returnQ=FALSE){
+  if (min(p) < 0 || sum(p) <= 0 || is.na(p[1])) return(NA)
+  else {p.norm <- p[p>0]/sum(p)
+  
+  if(returnH==TRUE){
+    return(-sum(log2(p.norm)*p.norm))
+  }else if(returnQ==TRUE){
+    return(-sum(log2(p.norm)*p.norm) - log2(p/sum(p)))
+  }else{
+    return(NA)
+  }
+  } 
+}
+```
+
+
+#### H          
+
+```{r}
+ShE <- rep(NA,nrow(mat.n))
+
+for(i in 1:nrow(mat.n)){
+  ShE[i] <- shannon.entropy(as.vector(as.matrix(mat.n[i,])))
+}
+```
+
+
+```{r}
+mat.n$ShE.H <- ShE
+dim(mat.n)
+```
+
+```{r paged.print=FALSE}
+mat.n[1:5,]
+```
+
+```{r}
+#write.csv(mat.n, "test_CREmarkers/matrix.avgExp_ShE.H.csv")
+```
+
+
+```{r}
+plot(sort(mat.n$ShE.H), 
+     main= "",
+     ylab = "Entropy Score",
+     xlab = "Sorted Filtered Markers")
+abline(h=1)
+abline(h=1.5)
+abline(h=2)
+abline(h=2.5)
+abline(h=3)
+abline(h=3.5)
+```
+
+
+
+#### Q|t                
+
+
+```{r paged.print=FALSE}
+# 
+ShE.Q <- matrix(data = NA,
+                nrow = length(markers.n),
+                ncol = length(levels(markers.new$cluster)))
+
+rownames(ShE.Q) <- markers.n
+colnames(ShE.Q) <- levels(markers.new$cluster)
+
+ShE.Q[1:5,1:5]
+```
+
+```{r}
+for(ii in 1:nrow(ShE.Q)){
+  ShE.Q[ii,] <- shannon.entropy(as.vector(as.matrix(mat.n[ii,1:16])),
+                               returnH = FALSE, returnQ = TRUE) 
+}
+ShE.Q <- as.data.frame(ShE.Q)
+
+for(nn in 1:ncol(ShE.Q)){
+  ShE.Q[,nn][is.infinite(ShE.Q[,nn])] <- 12
+}
+```
+
+
+```{r}
+sum(is.na(ShE.Q))
+sum(is.infinite(ShE.Q$EMN3))
+```
+
+
+
+```{r paged.print=FALSE}
+ShE.Q[1:5,1:5]
+```
+
+
+```{r}
+ShE.Q %>% arrange(EMN1) %>% head(8)
+```
+
+```{r}
+ShE.Q %>% arrange(IPAN1) %>% head(8)
+```
+
+
+
+```{r}
+ShE.Q %>% arrange(EMN5) %>% head(8)
+```
+
+```{r  fig.width=8, fig.height=6}
+VlnPlot(test1.seur, features = c("Dsc3","Dock2","Caln1","Tmem163"), group.by = "intAnno1", assay = "RNA", ncol = 2, cols = color.A1) 
+```
+
+
+```{r  fig.width=8, fig.height=6}
+VlnPlot(test1.seur, features = c("Btg4","Itgb6","Dapk2","Layn"), group.by = "intAnno1", assay = "RNA", ncol = 2, cols = color.A1) 
+```
+
+```{r fig.width=16, fig.height=12}
+par(mfrow=c(4,4))
+lapply(colnames(ShE.Q),function(x){
+  
+  plot(sort(ShE.Q[,x]), 
+     main= x,
+     ylab = "Entropy Score - Q|t",
+     xlab = "Sorted Filtered Markers")
+  abline(h=4)
+  abline(h=5)
+  abline(h=6)
+  abline(h=7)
+  abline(h=8)
+})
+
+```
+
+
+
+```{r}
+markers.filt1 <- markers.new %>% filter(gene %in% markers.n)
+
+# add avg.expression
+markers.filt1$avg.exp <- "NA"
+for(ii in 1:nrow(markers.filt1)){
+  markers.filt1$avg.exp[ii] <- round(mat.n[markers.filt1$gene[ii],markers.filt1$cluster[ii]],6)
+}
+
+
+# add ShE.H
+markers.filt1$ShE.H <- "NA"
+for(ii in 1:nrow(markers.filt1)){
+  markers.filt1$ShE.H[ii] <- round(mat.n[markers.filt1$gene[ii],"ShE.H"],6)
+}
+
+
+# add ShE.Q
+markers.filt1$ShE.Q <- "NA"
+for(ii in 1:nrow(markers.filt1)){
+  markers.filt1$ShE.Q[ii] <- round(ShE.Q[markers.filt1$gene[ii],markers.filt1$cluster[ii]],6)
+}
+
+markers.filt1 <- markers.filt1 %>% arrange(cluster, ShE.Q)
+```
+
+
+```{r}
+dim(markers.new)
+dim(markers.filt1)
+```
+
+```{r paged.print=FALSE}
+head(markers.new)
+```
+
+
+```{r paged.print=FALSE}
+head(markers.filt1)
+```
+
+
+```{r}
+#write.csv(ShE.Q, "test_CREmarkers/matrix.ShE.Q.csv")
+#write.csv(markers.filt1, "test_CREmarkers/markers.filt2679.Qsorted.csv")
+```
+
+
+
+### set cutoff          
+
+
+```{r}
+table(markers.new$cluster)
+```
+
+```{r}
+table(markers.filt1$cluster)
+```
+
+
+```{r paged.print=FALSE}
+markers.filt1 %>% filter(ShE.Q < 6) %>%  group_by(cluster)  %>% summarise(n=n())
+```
+
+
+```{r paged.print=FALSE}
+markers.filt1 %>% filter(ShE.H < 3) %>%  group_by(cluster)  %>% summarise(n=n())
+```
+
+
+```{r paged.print=FALSE}
+markers.filt1 %>% filter(ShE.H < 3 & ShE.Q < 6) %>%  group_by(cluster)  %>% summarise(n=n())
+```
+
+
+```{r}
+#markers.filt2 <- markers.filt1 %>% filter(ShE.H < 3) %>% group_by(cluster) %>% arrange(cluster,ShE.Q)
+#markers.filt2
+```
+
+
+```{r}
+markers.filt2 <- markers.filt1 %>% group_by(cluster) %>% arrange(cluster,ShE.Q) %>% do(head(.,n=60))
+markers.filt2 %>% head(8)
+```
+
+```{r}
+pp.filt2 <- lapply(levels(GEX.seur$intAnno1), function(xx){
+  
+  DotPlot(GEX.seur, features = (markers.filt2 %>% filter(cluster==xx))$gene, group.by = "intAnno1",
+                         cols = c("midnightblue","darkorange1"))  + labs(title=paste0(xx," - candidate CRE genes(entropy Q|t top40)") )+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 9.15))+ scale_y_discrete(limits=rev)
+  
+})
+```
+
+```{r fig.height=5, fig.width=10.8, message=FALSE, warning=FALSE}
+#pp.filt2
+```  
+
+
+```{r}
+markers.filt3 <- markers.filt1 %>% filter(pct.1>0.2) %>% group_by(cluster) %>% arrange(cluster,ShE.Q) %>% do(head(.,n=60))
+markers.filt3 %>% head(8)
+```
+
+```{r}
+#write.csv(markers.filt3, "test_CREmarkers/markers.pct0.2_Qtop60.csv")
+```
+
+
+#### plot       
+
+
+```{r message=FALSE, warning=FALSE}
+pp.filt3 <- lapply(levels(GEX.seur$intAnno1), function(xx){
+  
+  DotPlot(GEX.seur, features = (markers.filt3 %>% filter(cluster==xx))$gene, group.by = "intAnno1",
+                         cols = c("midnightblue","darkorange1"))  + labs(title=paste0(xx," - candidate CRE genes(pct>20%, entropy Q|t top60)") )+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 9.15))+ scale_y_discrete(limits=rev)+ 
+  scale_color_gradientn(colours  = material.heat(100))
+  
+})
+```
+
+```{r fig.height=5, fig.width=10.8, message=FALSE, warning=FALSE}
+pp.filt3
+```
+
+
+```{r message=FALSE, warning=FALSE}
+ppref.filt3 <- lapply(levels(GEX.seur$intAnno1), function(xx){
+  
+  DotPlot(ref.seur, features = (markers.filt3 %>% filter(cluster==xx))$gene, group.by = "Anno2",
+                         cols = c("midnightblue","darkorange1"))  + labs(title=paste0(xx," - candidate CRE genes(check in NatNeur2021)") )+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 9.15))+ scale_y_discrete(limits=rev)+ 
+  scale_color_gradientn(colours  = material.heat(100))
+  
+})
+```
+
+```{r fig.height=5, fig.width=10.8, message=FALSE, warning=FALSE}
+ppref.filt3
+```
+
+
+```{r  fig.height=9.6, fig.width=11.8, message=FALSE, warning=FALSE}
+xx=16
+  cowplot::plot_grid(
+    pp.filt3[[xx]],
+    ppref.filt3[[xx]],
+    ncol = 1
+  )
+
+```
+
+
+```{r eval=FALSE, include=FALSE}
+nn=16
+#
+  xx <- levels(GEX.seur$intAnno1)[nn]
+  pdf(paste0("test_CREmarkers/pct0.2_Qtop60/testCREmarkers.pct0.2_Qtop60.",xx,".pdf"),
+      width = 13.6,height = 9.6)
+  cowplot::plot_grid(
+    pp.filt3[[nn]],
+    ppref.filt3[[nn]],
+    ncol = 1
+  )
+  dev.off()
+
+```
+
+
+
+
+
+

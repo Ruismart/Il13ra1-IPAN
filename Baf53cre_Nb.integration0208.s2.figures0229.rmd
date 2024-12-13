@@ -1,0 +1,2127 @@
+---
+output: 
+  html_document: 
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+---
+
+
+# sn-ENS neuron integration       
+
+
+several figures for each batch               
+
+
+```{r message=FALSE, warning=FALSE}
+source("/Shared_win/projects/RNA_normal/analysis.10x.r")
+```
+
+
+## load integrated obj                      
+
+
+```{r}
+GEX.seur <- readRDS("../integration_Nb5d/sn10x_WYS.sct_anno.s.rds")
+GEX.seur
+```
+
+```{r}
+ref.seur <- readRDS("../../20230704_10x_SZJ/analysis_ref/GSE149524.P21.integration_Anno.s.rds")
+ref.seur
+```
+
+
+
+```{r}
+# define intAnno1/2 colors
+color.A1 <- c("#678BB1","#8AB6CE","#3975C1","#669FDF","#4CC1BD",
+              "#BF7E6B","#D46B35","#F19258","#FF8080",
+              "#BDAE8D","#BD66C4","#C03778",
+              "#97BA59","#DFAB16","#2BA956","#9FE727")
+
+color.A2 <- c("#678BB1","#8AB6CE","#3975C1","#669FDF","#4CC1BD",
+              "#BF7E6B","#D46B35","#F19258","#FF8080",
+              "#BDAE8D","#BD66C4","#C03778",
+              "#97BA59","#C4D116", "#DFAB16","#EDE25A", "#2BA956","#9FE727")
+
+
+# define batch/condition colors
+color.cnt <- scales::hue_pal()(4)[c(2,1,4,3)]
+
+color.test1 <- color.cnt[1:2]
+color.test2 <- color.cnt[3:4]
+
+## define feature colors
+# Cell2020     
+material.heat = function(n){
+  colorRampPalette(
+    c(
+      "#283593", # indigo 800
+      "#3F51B5", # indigo
+      "#2196F3", # blue
+      "#00BCD4", # cyan
+      "#4CAF50", # green
+      "#8BC34A", # light green
+      "#CDDC39", # lime
+      "#FFEB3B", # yellow
+      "#FFC107", # amber
+      "#FF9800", # orange
+      "#FF5722"  # deep orange
+    )
+  )(n)
+}
+
+# Immunity2019, na gray
+colors.Immunity <-c("#191970","#121285","#0C0C9A","#0707B0","#0101C5","#0014CF","#0033D3","#0053D8","#0072DD","#0092E1","#00B2E6",
+                  "#00D1EB","#23E8CD","#7AF17B","#D2FA29","#FFEB00","#FFC300","#FF9B00","#FF8400","#FF7800","#FF6B00","#FF5F00","#FF5300",
+                  "#FF4700","#F73B00","#EF2E00","#E62300","#DD1700","#D50B00","#CD0000")
+
+
+# NatNeur2021, sc-neurons
+color.ref <- c("#8AB6CE","#678BB1","#3975C1","#4CC1BD",
+               "#C03778","#97BA59","#DFAB16","#BF7E6B",
+               "#D46B35","#BDAE8D","#BD66C4","#2BA956",
+               "#FF8080","#FF8080","#FF8080","#FF0000")
+```
+
+
+```{r}
+write.table(color.A1, "figures.integration/color.A1.txt", col.names = F, row.names = F, quote = F)
+write.table(color.A2, "figures.integration/color.A2.txt", col.names = F, row.names = F, quote = F)
+
+write.table(color.cnt, "figures.integration/color.condition.txt", col.names = F, row.names = F, quote = F)
+```
+
+
+```{r}
+scales::show_col(color.A1)
+scales::show_col(color.A2)
+
+scales::show_col(color.cnt)
+```
+
+
+
+```{r fig.width=11.5,fig.height=4.5}
+cowplot::plot_grid(
+DimPlot(GEX.seur, reduction = "umap", group.by = "intAnno1", label = T, label.size = 3.25,repel = F, pt.size = 0.05,
+        cols = color.A1),
+  DimPlot(GEX.seur, label = F, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "cnt",
+        cols = color.cnt) ,
+rel_widths = c(4.8,5),
+ncol = 2)
+```
+
+
+
+```{r fig.width=12,fig.height=4.5}
+cowplot::plot_grid(
+DimPlot(GEX.seur, reduction = "umap", group.by = "intAnno2", label = T, label.size = 2.65,repel = F, pt.size = 0.05,
+        cols = color.A2),
+  DimPlot(GEX.seur, label = F, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "cnt",
+        cols = color.cnt) ,
+rel_widths = c(4.85,5),
+ncol = 2)
+```
+
+```{r eval=FALSE, include=FALSE}
+# umap0
+pdf("./figures.integration/umap.intAnno1_cnt.all.pdf",
+    width = 11.5, height = 4.5)
+cowplot::plot_grid(
+DimPlot(GEX.seur, reduction = "umap", group.by = "intAnno1", label = T, label.size = 3.25,repel = F, pt.size = 0.05,
+        cols = color.A1),
+  DimPlot(GEX.seur, label = F, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "cnt",
+        cols = color.cnt) ,
+rel_widths = c(4.8,5),
+ncol = 2)
+dev.off()
+
+pdf("./figures.integration/umap.intAnno2_cnt.all.pdf",
+    width = 12, height = 4.5)
+cowplot::plot_grid(
+DimPlot(GEX.seur, reduction = "umap", group.by = "intAnno2", label = T, label.size = 2.65,repel = F, pt.size = 0.05,
+        cols = color.A2),
+  DimPlot(GEX.seur, label = F, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "cnt",
+        cols = color.cnt) ,
+rel_widths = c(4.85,5),
+ncol = 2)
+dev.off()
+```
+
+```{r fig.width=10.5,fig.height=4.5}
+DimPlot(ref.seur, reduction = "umap", label = T, group.by = "Anno1", cols = color.ref) +
+  DimPlot(ref.seur, reduction = "umap", label = T, group.by = "Anno2")
+```
+
+```{r eval=FALSE, include=FALSE}
+pdf("./figures.integration/check.NatNeur2021/umap.NatNeur2021_GSE149524.P21.integration.pdf",
+    width = 11.5, height = 4.8)
+DimPlot(ref.seur, reduction = "umap", label = T, group.by = "Anno1", cols = color.ref) +
+  DimPlot(ref.seur, reduction = "umap", label = T, group.by = "Anno2")
+dev.off()
+```
+
+
+
+### PBS_INF             
+
+
+```{r}
+test1.seur <- subset(GEX.seur, subset= cnt %in% c("Nb5d.PBS","Nb5d.INF"))
+test1.seur
+```
+
+```{r}
+test1.seur <- ScaleData(test1.seur, features = rownames(test1.seur))
+```
+
+
+```{r fig.width=11.5,fig.height=4.5}
+cowplot::plot_grid(
+DimPlot(test1.seur, reduction = "umap", group.by = "intAnno1", label = T, label.size = 3.25,repel = F, pt.size = 0.15,
+        cols = color.A1),
+  DimPlot(test1.seur, label = F, pt.size = 0.15, repel = F, reduction = 'umap', group.by = "cnt",
+        cols = color.test1) ,
+rel_widths = c(4.8,5),
+ncol = 2)
+```
+
+
+
+```{r fig.width=12,fig.height=4.5}
+cowplot::plot_grid(
+DimPlot(test1.seur, reduction = "umap", group.by = "intAnno2", label = T, label.size = 2.65,repel = F, pt.size = 0.15,
+        cols = color.A2),
+  DimPlot(test1.seur, label = F, pt.size = 0.15, repel = F, reduction = 'umap', group.by = "cnt",
+        cols = color.test1) ,
+rel_widths = c(4.85,5),
+ncol = 2)
+```
+
+```{r eval=FALSE, include=FALSE}
+# umap0
+pdf("./figures.integration/PBSvsINF/umap.intAnno1_cnt.PBSvsINF.pdf",
+    width = 11.5, height = 4.5)
+cowplot::plot_grid(
+DimPlot(test1.seur, reduction = "umap", group.by = "intAnno1", label = T, label.size = 3.25,repel = F, pt.size = 0.15,
+        cols = color.A1),
+  DimPlot(test1.seur, label = F, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "cnt",
+        cols = color.test1) ,
+rel_widths = c(4.8,5),
+ncol = 2)
+dev.off()
+
+pdf("./figures.integration/PBSvsINF/umap.intAnno2_cnt.PBSvsINF.pdf",
+    width = 12, height = 4.5)
+cowplot::plot_grid(
+DimPlot(test1.seur, reduction = "umap", group.by = "intAnno2", label = T, label.size = 2.65,repel = F, pt.size = 0.15,
+        cols = color.A2),
+  DimPlot(test1.seur, label = F, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "cnt",
+        cols = color.test1) ,
+rel_widths = c(4.85,5),
+ncol = 2)
+dev.off()
+```
+
+
+### CTL_CKO             
+
+
+```{r}
+test2.seur <- subset(GEX.seur, subset= cnt %in% c("Nb5d.CTL","Nb5d.CKO"))
+test2.seur
+```
+
+```{r}
+test2.seur <- ScaleData(test2.seur, features = rownames(test2.seur))
+```
+
+
+```{r fig.width=11.5,fig.height=4.5}
+cowplot::plot_grid(
+DimPlot(test2.seur, reduction = "umap", group.by = "intAnno1", label = T, label.size = 3.25,repel = F, pt.size = 0.15,
+        cols = color.A1),
+  DimPlot(test2.seur, label = F, pt.size = 0.15, repel = F, reduction = 'umap', group.by = "cnt",
+        cols = color.test2) ,
+rel_widths = c(4.8,5),
+ncol = 2)
+```
+
+
+
+```{r fig.width=12,fig.height=4.5}
+cowplot::plot_grid(
+DimPlot(test2.seur, reduction = "umap", group.by = "intAnno2", label = T, label.size = 2.65,repel = F, pt.size = 0.15,
+        cols = color.A2),
+  DimPlot(test2.seur, label = F, pt.size = 0.15, repel = F, reduction = 'umap', group.by = "cnt",
+        cols = color.test2) ,
+rel_widths = c(4.85,5),
+ncol = 2)
+```
+
+```{r eval=FALSE, include=FALSE}
+# umap0
+pdf("./figures.integration/CTLvsCKO/umap.intAnno1_cnt.CTLvsCKO.pdf",
+    width = 11.5, height = 4.5)
+cowplot::plot_grid(
+DimPlot(test2.seur, reduction = "umap", group.by = "intAnno1", label = T, label.size = 3.25,repel = F, pt.size = 0.15,
+        cols = color.A1),
+  DimPlot(test2.seur, label = F, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "cnt",
+        cols = color.test2) ,
+rel_widths = c(4.8,5),
+ncol = 2)
+dev.off()
+
+pdf("./figures.integration/CTLvsCKO/umap.intAnno2_cnt.CTLvsCKO.pdf",
+    width = 12, height = 4.5)
+cowplot::plot_grid(
+DimPlot(test2.seur, reduction = "umap", group.by = "intAnno2", label = T, label.size = 2.65,repel = F, pt.size = 0.15,
+        cols = color.A2),
+  DimPlot(test2.seur, label = F, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "cnt",
+        cols = color.test2) ,
+rel_widths = c(4.85,5),
+ncol = 2)
+dev.off()
+```
+
+
+## composition           
+            
+(processed in s1)         
+
+
+
+## final markers                
+
+
+### long                   
+                  
+(pass)               
+             
+               
+
+### short_old             
+
+
+```{r}
+markers.old.s <- list(EMN=c("Chat","Bnc2",#"Tox","Ptprt",
+                       "Gfra2","Oprk1",#"Adamtsl1", 
+                       "Fbxw15","Fbxw24",#"Chrna7",
+                       "Satb1","Cntnap5b",
+                       "Gabrb1","Nxph1","Lama2","Lrrc7",
+                       "Ryr3",#"Eda",
+                       "Tac1",
+                       #"Kctd8","Ntrk2",
+                       "Penk",
+                       "Fut9","Nfatc1","Egfr",#"Mgll",
+                       "Chrm3"
+                       ),
+                 IMN=c("Nos1","Kcnab1",
+                       "Gfra1","Etv1",
+                       #"Man1a","Airn",
+                       "Adcy2","Cmah","Creb5","Vip","Pde1a",
+                       "Ebf1"#,"Gpc5"
+                       ),
+                 IN=c("Npas3","Synpr","St18","Gal",
+                      "Neurod6",
+                      #"Kcnk13",
+                      "Moxd1","Sctr",
+                      "Piezo1","Sst",#"Adamts9",
+                      "Kcnn2"),
+                 IPAN=c("Calb2","Calcb","Nmu","Adgrg6",#"Pcdh10",
+                        "Ngfr","Galr1","Il7",#"Aff2",
+                        #"Gpr149",
+                        "Cdh6","Cdh8",
+                        "Clstn2",#"Ano2","Ntrk3",
+                        "Cpne4",#"Vwc2l",
+                        "Cdh9","Scgn",
+                        #"Vcan",
+                        "Cck","Piezo2","Kcnh7",
+                        #"Rerg",
+                        "Bmpr1b","Skap1","Ntng1",
+                        "Tafa2","Nxph2"))
+```
+
+```{r eval=FALSE, include=FALSE}
+sink("./figures.integration/dotplot.old/final_markers.old.dotplot_short.csv")
+
+markers.old.s
+
+sink()
+```
+                           
+
+```{r fig.height=4.75, fig.width=11.5, message=FALSE, warning=FALSE}
+pn.intAnno1.test0a <- DotPlot(GEX.seur, features = as.vector(unlist(markers.old.s)), group.by = "intAnno1",
+        cols = c("midnightblue","darkorange1")) +
+  #coord_flip() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 9.15))+ 
+  scale_color_gradientn(colours  = material.heat(100)) +
+  #scale_x_discrete(limits=rev) + 
+  scale_y_discrete(limits=rev) + 
+  labs(title="All intAnno1")
+pn.intAnno1.test0a
+```
+
+
+```{r fig.height=5, fig.width=11.5, message=FALSE, warning=FALSE}
+pn.intAnno2.test0a <- DotPlot(GEX.seur, features = as.vector(unlist(markers.old.s)), group.by = "intAnno2",
+        cols = c("midnightblue","darkorange1")) +
+  #coord_flip() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 9.15))+ 
+  scale_color_gradientn(colours  = material.heat(100)) +
+  #scale_x_discrete(limits=rev) + 
+  scale_y_discrete(limits=rev) + 
+  labs(title="All intAnno2")
+pn.intAnno2.test0a
+```
+
+```{r fig.height=10, fig.width=5.5, message=FALSE, warning=FALSE}
+pn.intAnno1.test0b <- DotPlot(GEX.seur, features = as.vector(unlist(markers.old.s)), group.by = "intAnno1",
+        cols = c("midnightblue","darkorange1")) +
+  coord_flip() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.4,size = 9.15))+ 
+  scale_color_gradientn(colours  = material.heat(100)) +
+  #scale_x_discrete(limits=rev) + scale_y_discrete(limits=rev) + 
+  labs(title="All intAnno1")
+pn.intAnno1.test0b
+```
+
+
+```{r fig.height=10, fig.width=6, message=FALSE, warning=FALSE}
+pn.intAnno2.test0b <- DotPlot(GEX.seur, features = as.vector(unlist(markers.old.s)), group.by = "intAnno2",
+        cols = c("midnightblue","darkorange1")) +
+  coord_flip() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.4,size = 9.15))+ 
+  scale_color_gradientn(colours  = material.heat(100)) +
+  #scale_x_discrete(limits=rev) + scale_y_discrete(limits=rev) + 
+  labs(title="All intAnno2")
+pn.intAnno2.test0b
+```
+
+
+```{r eval=FALSE, include=FALSE}
+#
+ggsave("figures.integration/dotplot.old/dotplot.old.All_intAnno1.a.pdf",
+       width = 12.75,height = 5,
+       plot = pn.intAnno1.test0a)
+ggsave("figures.integration/dotplot.old/dotplot.old.All_intAnno2.a.pdf",
+       width = 12.75,height = 5.4,
+       plot = pn.intAnno2.test0a)
+
+#
+ggsave("figures.integration/dotplot.old/dotplot.old.All_intAnno1.b.pdf",
+       width = 6.5,height = 12,
+       plot = pn.intAnno1.test0b)
+ggsave("figures.integration/dotplot.old/dotplot.old.All_intAnno2.b.pdf",
+       width = 7,height = 12,
+       plot = pn.intAnno2.test0b)
+
+```
+
+
+```{r fig.height=4.75, fig.width=11.5, message=FALSE, warning=FALSE}
+pn.intAnno1.test1a <- DotPlot(test1.seur, features = as.vector(unlist(markers.old.s)), group.by = "intAnno1",
+        cols = c("midnightblue","darkorange1")) +
+  #coord_flip() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 9.15))+ 
+  scale_color_gradientn(colours  = material.heat(100)) +
+  #scale_x_discrete(limits=rev) + 
+  scale_y_discrete(limits=rev) + 
+  labs(title="PBSvsINF intAnno1")
+pn.intAnno1.test1a
+```
+
+
+```{r fig.height=5, fig.width=11.5, message=FALSE, warning=FALSE}
+pn.intAnno2.test1a <- DotPlot(test1.seur, features = as.vector(unlist(markers.old.s)), group.by = "intAnno2",
+        cols = c("midnightblue","darkorange1")) +
+  #coord_flip() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 9.15))+ 
+  scale_color_gradientn(colours  = material.heat(100)) +
+  #scale_x_discrete(limits=rev) + 
+  scale_y_discrete(limits=rev) + 
+  labs(title="PBSvsINF intAnno2")
+pn.intAnno2.test1a
+```
+
+```{r fig.height=10, fig.width=5.5, message=FALSE, warning=FALSE}
+pn.intAnno1.test1b <- DotPlot(test1.seur, features = as.vector(unlist(markers.old.s)), group.by = "intAnno1",
+        cols = c("midnightblue","darkorange1")) +
+  coord_flip() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.4,size = 9.15))+ 
+  scale_color_gradientn(colours  = material.heat(100)) +
+  #scale_x_discrete(limits=rev) + scale_y_discrete(limits=rev) + 
+  labs(title="PBSvsINF intAnno1")
+pn.intAnno1.test1b
+```
+
+
+```{r fig.height=10, fig.width=6, message=FALSE, warning=FALSE}
+pn.intAnno2.test1b <- DotPlot(test1.seur, features = as.vector(unlist(markers.old.s)), group.by = "intAnno2",
+        cols = c("midnightblue","darkorange1")) +
+  coord_flip() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.4,size = 9.15))+ 
+  scale_color_gradientn(colours  = material.heat(100)) +
+  #scale_x_discrete(limits=rev) + scale_y_discrete(limits=rev) + 
+  labs(title="PBSvsINF intAnno2")
+pn.intAnno2.test1b
+```
+
+
+```{r eval=FALSE, include=FALSE}
+#
+ggsave("figures.integration/dotplot.old/dotplot.old.PBSvsINF_intAnno1.a.pdf",
+       width = 12.75,height = 5,
+       plot = pn.intAnno1.test1a)
+ggsave("figures.integration/dotplot.old/dotplot.old.PBSvsINF_intAnno2.a.pdf",
+       width = 12.75,height = 5.4,
+       plot = pn.intAnno2.test1a)
+
+#
+ggsave("figures.integration/dotplot.old/dotplot.old.PBSvsINF_intAnno1.b.pdf",
+       width = 6.5,height = 12,
+       plot = pn.intAnno1.test1b)
+ggsave("figures.integration/dotplot.old/dotplot.old.PBSvsINF_intAnno2.b.pdf",
+       width = 7,height = 12,
+       plot = pn.intAnno2.test1b)
+
+```
+
+
+```{r fig.height=4.75, fig.width=11.5, message=FALSE, warning=FALSE}
+pn.intAnno1.test2a <- DotPlot(test2.seur, features = as.vector(unlist(markers.old.s)), group.by = "intAnno1",
+        cols = c("midnightblue","darkorange1")) +
+  #coord_flip() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 9.15))+ 
+  scale_color_gradientn(colours  = material.heat(100)) +
+  #scale_x_discrete(limits=rev) + 
+  scale_y_discrete(limits=rev) + 
+  labs(title="CTLvsCKO intAnno1")
+pn.intAnno1.test2a
+```
+
+
+```{r fig.height=5, fig.width=11.5, message=FALSE, warning=FALSE}
+pn.intAnno2.test2a <- DotPlot(test2.seur, features = as.vector(unlist(markers.old.s)), group.by = "intAnno2",
+        cols = c("midnightblue","darkorange1")) +
+  #coord_flip() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 9.15))+ 
+  scale_color_gradientn(colours  = material.heat(100)) +
+  #scale_x_discrete(limits=rev) + 
+  scale_y_discrete(limits=rev) + 
+  labs(title="CTLvsCKO intAnno2")
+pn.intAnno2.test2a
+```
+
+```{r fig.height=10, fig.width=5.5, message=FALSE, warning=FALSE}
+pn.intAnno1.test2b <- DotPlot(test2.seur, features = as.vector(unlist(markers.old.s)), group.by = "intAnno1",
+        cols = c("midnightblue","darkorange1")) +
+  coord_flip() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.4,size = 9.15))+ 
+  scale_color_gradientn(colours  = material.heat(100)) +
+  #scale_x_discrete(limits=rev) + scale_y_discrete(limits=rev) + 
+  labs(title="CTLvsCKO intAnno1")
+pn.intAnno1.test2b
+```
+
+
+```{r fig.height=10, fig.width=6, message=FALSE, warning=FALSE}
+pn.intAnno2.test2b <- DotPlot(test2.seur, features = as.vector(unlist(markers.old.s)), group.by = "intAnno2",
+        cols = c("midnightblue","darkorange1")) +
+  coord_flip() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.4,size = 9.15))+ 
+  scale_color_gradientn(colours  = material.heat(100)) +
+  #scale_x_discrete(limits=rev) + scale_y_discrete(limits=rev) + 
+  labs(title="CTLvsCKO intAnno2")
+pn.intAnno2.test2b
+```
+
+
+```{r eval=FALSE, include=FALSE}
+#
+ggsave("figures.integration/dotplot.old/dotplot.old.CTLvsCKO_intAnno1.a.pdf",
+       width = 12.75,height = 5,
+       plot = pn.intAnno1.test2a)
+ggsave("figures.integration/dotplot.old/dotplot.old.CTLvsCKO_intAnno2.a.pdf",
+       width = 12.75,height = 5.4,
+       plot = pn.intAnno2.test2a)
+
+#
+ggsave("figures.integration/dotplot.old/dotplot.old.CTLvsCKO_intAnno1.b.pdf",
+       width = 6.5,height = 12,
+       plot = pn.intAnno1.test2b)
+ggsave("figures.integration/dotplot.old/dotplot.old.CTLvsCKO_intAnno2.b.pdf",
+       width = 7,height = 12,
+       plot = pn.intAnno2.test2b)
+
+```
+
+
+```{r fig.height=4.75, fig.width=11.5, message=FALSE, warning=FALSE}
+pn.ref.a <- DotPlot(ref.seur, features = as.vector(unlist(markers.old.s)), group.by = "Anno2",
+        cols = c("midnightblue","darkorange1")) +
+  #coord_flip() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 9.15))+ 
+  scale_color_gradientn(colours  = material.heat(100)) +
+  #scale_x_discrete(limits=rev) + 
+  scale_y_discrete(limits=rev) + 
+  labs(title="NatNeur2021 P21")
+pn.ref.a
+```
+
+
+```{r fig.height=10, fig.width=5.5, message=FALSE, warning=FALSE}
+pn.ref.b <- DotPlot(ref.seur, features = as.vector(unlist(markers.old.s)), group.by = "Anno2",
+        cols = c("midnightblue","darkorange1")) +
+  coord_flip() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.4,size = 9.15))+ 
+  scale_color_gradientn(colours  = material.heat(100)) +
+  #scale_x_discrete(limits=rev) + scale_y_discrete(limits=rev) + 
+  labs(title="NatNeur2021 P21")
+pn.ref.b
+```
+
+
+```{r eval=FALSE, include=FALSE}
+#
+ggsave("figures.integration/check.NatNeur2021/dotplot.old.NatNeur2021.a.pdf",
+       width = 12.75,height = 5.05,
+       plot = pn.ref.a)
+
+#
+ggsave("figures.integration/check.NatNeur2021/dotplot.old.NatNeur2021.b.pdf",
+       width = 6.25,height = 12,
+       plot = pn.ref.b)
+
+
+```
+
+
+### short_new              
+
+
+```{r}
+markers.new.s <- list(EMN=c("Chat","Bnc2",#"Tox","Ptprt",
+                       "Gfra2","Oprk1",#"Adamtsl1", 
+                       "Fbxw15","Fbxw24",#"Chrna7",
+                       "Satb1","Itga6","Cntnap5b",
+                       "Chgb","Nxph1",
+                       "Lama2","Efnb2","Itgb8",
+                       "Lrrc7",
+                       "Ryr3",#"Eda",
+                       "Tac1",
+                       #"Kctd8","Ntrk2",
+                       "Penk",
+                       "Fut9","Nfatc1","Egfr",#"Mgll",
+                       "Chrm3"
+                       ),
+                 IMN=c("Nos1","Kcnab1",
+                       "Gfra1","Etv1",
+                       #"Man1a","Airn",
+                       "Adcy2","Cmah","Col25a1",
+                       "Mid1","Creb5","Vip","Pde1a",
+                       "Ebf1",#,"Gpc5"
+                       "Ppara","Pcdh11x",
+                       "Adcy8","Grp"
+                       ),
+                 IN=c("Npas3","Synpr","St18","Gal",
+                      "Cdh10","Neurod6",
+                      "Kcnk13",
+                      "Moxd1","Sctr",
+                      "Piezo1","Vipr2","Sst",#"Adamts9",
+                      "Kcnn2"
+                      ),
+                 IPAN=c("Calb2","Adcy1",
+                        "Nmu","Adgrg6",#"Pcdh10",
+                        "Ngfr","Il7",
+                        "Itgb6","Calcb","Galr1",
+                        #"Aff2",
+                        #"Gpr149",
+                        "Met",
+                        "Cpne4","Cdh6","Cdh8",
+                        "Clstn2",#"Ano2","Ntrk3",
+                        #"Vwc2l",
+                        "Car10","Scgn","Glp2r","Cck",
+                        "Cdh9",
+                        #"Vcan",
+                        "Dcc",
+                        "Gabrb1",
+                        "Piezo2","Kcnh7",
+                        #"Rerg",
+                        "Bmpr1b","Ntng1","Skap1",
+                        "Tafa2","Nxph2"))
+```
+
+
+```{r eval=FALSE, include=FALSE}
+sink("./figures.integration/dotplot.new/final_markers.new.dotplot_short.csv")
+
+markers.new.s
+
+sink()
+```
+
+
+```{r fig.height=4.75, fig.width=14.5, message=FALSE, warning=FALSE}
+pm.intAnno1.test0a <- DotPlot(GEX.seur, features = as.vector(unlist(markers.new.s)), group.by = "intAnno1",
+        cols = c("midnightblue","darkorange1")) +
+  #coord_flip() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 9.15))+ 
+  scale_color_gradientn(colours  = material.heat(100)) +
+  #scale_x_discrete(limits=rev) + 
+  scale_y_discrete(limits=rev) + 
+  labs(title="All intAnno1")
+pm.intAnno1.test0a
+```
+
+
+```{r fig.height=5, fig.width=14.5, message=FALSE, warning=FALSE}
+pm.intAnno2.test0a <- DotPlot(GEX.seur, features = as.vector(unlist(markers.new.s)), group.by = "intAnno2",
+        cols = c("midnightblue","darkorange1")) +
+  #coord_flip() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 9.15))+ 
+  scale_color_gradientn(colours  = material.heat(100)) +
+  #scale_x_discrete(limits=rev) + 
+  scale_y_discrete(limits=rev) + 
+  labs(title="All intAnno2")
+pm.intAnno2.test0a
+```
+
+```{r fig.height=13.5, fig.width=6, message=FALSE, warning=FALSE}
+pm.intAnno1.test0b <- DotPlot(GEX.seur, features = as.vector(unlist(markers.new.s)), group.by = "intAnno1",
+        cols = c("midnightblue","darkorange1")) +
+  coord_flip() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.4,size = 9.15))+ 
+  scale_color_gradientn(colours  = material.heat(100)) +
+  #scale_x_discrete(limits=rev) + scale_y_discrete(limits=rev) + 
+  labs(title="All intAnno1")
+pm.intAnno1.test0b
+```
+
+
+```{r fig.height=13.5, fig.width=6, message=FALSE, warning=FALSE}
+pm.intAnno2.test0b <- DotPlot(GEX.seur, features = as.vector(unlist(markers.new.s)), group.by = "intAnno2",
+        cols = c("midnightblue","darkorange1")) +
+  coord_flip() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.4,size = 9.15))+ 
+  scale_color_gradientn(colours  = material.heat(100)) +
+  #scale_x_discrete(limits=rev) + scale_y_discrete(limits=rev) + 
+  labs(title="All intAnno2")
+pm.intAnno2.test0b
+```
+
+
+```{r eval=FALSE, include=FALSE}
+#
+ggsave("figures.integration/dotplot.new/dotplot.new.All_intAnno1.a.pdf",
+       width = 15.5,height = 5,
+       plot = pm.intAnno1.test0a)
+ggsave("figures.integration/dotplot.new/dotplot.new.All_intAnno2.a.pdf",
+       width = 15.5,height = 5.4,
+       plot = pm.intAnno2.test0a)
+
+#
+ggsave("figures.integration/dotplot.new/dotplot.new.All_intAnno1.b.pdf",
+       width = 6.5,height = 15,
+       plot = pm.intAnno1.test0b)
+ggsave("figures.integration/dotplot.new/dotplot.new.All_intAnno2.b.pdf",
+       width = 7,height = 15,
+       plot = pm.intAnno2.test0b)
+
+```
+
+
+
+```{r fig.height=4.75, fig.width=14.5, message=FALSE, warning=FALSE}
+pm.intAnno1.test1a <- DotPlot(test1.seur, features = as.vector(unlist(markers.new.s)), group.by = "intAnno1",
+        cols = c("midnightblue","darkorange1")) +
+  #coord_flip() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 9.15))+ 
+  scale_color_gradientn(colours  = material.heat(100)) +
+  #scale_x_discrete(limits=rev) + 
+  scale_y_discrete(limits=rev) + 
+  labs(title="PBSvsINF intAnno1")
+pm.intAnno1.test1a
+```
+
+
+```{r fig.height=5, fig.width=14.5, message=FALSE, warning=FALSE}
+pm.intAnno2.test1a <- DotPlot(test1.seur, features = as.vector(unlist(markers.new.s)), group.by = "intAnno2",
+        cols = c("midnightblue","darkorange1")) +
+  #coord_flip() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 9.15))+ 
+  scale_color_gradientn(colours  = material.heat(100)) +
+  #scale_x_discrete(limits=rev) + 
+  scale_y_discrete(limits=rev) + 
+  labs(title="PBSvsINF intAnno2")
+pm.intAnno2.test1a
+```
+
+```{r fig.height=13.5, fig.width=6, message=FALSE, warning=FALSE}
+pm.intAnno1.test1b <- DotPlot(test1.seur, features = as.vector(unlist(markers.new.s)), group.by = "intAnno1",
+        cols = c("midnightblue","darkorange1")) +
+  coord_flip() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.4,size = 9.15))+ 
+  scale_color_gradientn(colours  = material.heat(100)) +
+  #scale_x_discrete(limits=rev) + scale_y_discrete(limits=rev) + 
+  labs(title="PBSvsINF intAnno1")
+pm.intAnno1.test1b
+```
+
+
+```{r fig.height=13.5, fig.width=6, message=FALSE, warning=FALSE}
+pm.intAnno2.test1b <- DotPlot(test1.seur, features = as.vector(unlist(markers.new.s)), group.by = "intAnno2",
+        cols = c("midnightblue","darkorange1")) +
+  coord_flip() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.4,size = 9.15))+ 
+  scale_color_gradientn(colours  = material.heat(100)) +
+  #scale_x_discrete(limits=rev) + scale_y_discrete(limits=rev) + 
+  labs(title="PBSvsINF intAnno2")
+pm.intAnno2.test1b
+```
+
+
+```{r eval=FALSE, include=FALSE}
+#
+ggsave("figures.integration/dotplot.new/dotplot.new.PBSvsINF_intAnno1.a.pdf",
+       width = 15.5,height = 5,
+       plot = pm.intAnno1.test1a)
+ggsave("figures.integration/dotplot.new/dotplot.new.PBSvsINF_intAnno2.a.pdf",
+       width = 15.5,height = 5.4,
+       plot = pm.intAnno2.test1a)
+
+#
+ggsave("figures.integration/dotplot.new/dotplot.new.PBSvsINF_intAnno1.b.pdf",
+       width = 6.5,height = 15,
+       plot = pm.intAnno1.test1b)
+ggsave("figures.integration/dotplot.new/dotplot.new.PBSvsINF_intAnno2.b.pdf",
+       width = 7,height = 15,
+       plot = pm.intAnno2.test1b)
+
+```
+
+
+```{r fig.height=4.75, fig.width=14.5, message=FALSE, warning=FALSE}
+pm.intAnno1.test2a <- DotPlot(test2.seur, features = as.vector(unlist(markers.new.s)), group.by = "intAnno1",
+        cols = c("midnightblue","darkorange1")) +
+  #coord_flip() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 9.15))+ 
+  scale_color_gradientn(colours  = material.heat(100)) +
+  #scale_x_discrete(limits=rev) + 
+  scale_y_discrete(limits=rev) + 
+  labs(title="CTLvsCKO intAnno1")
+pm.intAnno1.test2a
+```
+
+
+```{r fig.height=5, fig.width=14.5, message=FALSE, warning=FALSE}
+pm.intAnno2.test2a <- DotPlot(test2.seur, features = as.vector(unlist(markers.new.s)), group.by = "intAnno2",
+        cols = c("midnightblue","darkorange1")) +
+  #coord_flip() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 9.15))+ 
+  scale_color_gradientn(colours  = material.heat(100)) +
+  #scale_x_discrete(limits=rev) + 
+  scale_y_discrete(limits=rev) + 
+  labs(title="CTLvsCKO intAnno2")
+pm.intAnno2.test2a
+```
+
+```{r fig.height=13.5, fig.width=6, message=FALSE, warning=FALSE}
+pm.intAnno1.test2b <- DotPlot(test2.seur, features = as.vector(unlist(markers.new.s)), group.by = "intAnno1",
+        cols = c("midnightblue","darkorange1")) +
+  coord_flip() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.4,size = 9.15))+ 
+  scale_color_gradientn(colours  = material.heat(100)) +
+  #scale_x_discrete(limits=rev) + scale_y_discrete(limits=rev) + 
+  labs(title="CTLvsCKO intAnno1")
+pm.intAnno1.test2b
+```
+
+
+```{r fig.height=13.5, fig.width=6, message=FALSE, warning=FALSE}
+pm.intAnno2.test2b <- DotPlot(test2.seur, features = as.vector(unlist(markers.new.s)), group.by = "intAnno2",
+        cols = c("midnightblue","darkorange1")) +
+  coord_flip() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.4,size = 9.15))+ 
+  scale_color_gradientn(colours  = material.heat(100)) +
+  #scale_x_discrete(limits=rev) + scale_y_discrete(limits=rev) + 
+  labs(title="CTLvsCKO intAnno2")
+pm.intAnno2.test2b
+```
+
+
+```{r eval=FALSE, include=FALSE}
+#
+ggsave("figures.integration/dotplot.new/dotplot.new.CTLvsCKO_intAnno1.a.pdf",
+       width = 15.5,height = 5,
+       plot = pm.intAnno1.test2a)
+ggsave("figures.integration/dotplot.new/dotplot.new.CTLvsCKO_intAnno2.a.pdf",
+       width = 15.5,height = 5.4,
+       plot = pm.intAnno2.test2a)
+
+#
+ggsave("figures.integration/dotplot.new/dotplot.new.CTLvsCKO_intAnno1.b.pdf",
+       width = 6.5,height = 15,
+       plot = pm.intAnno1.test2b)
+ggsave("figures.integration/dotplot.new/dotplot.new.CTLvsCKO_intAnno2.b.pdf",
+       width = 7,height = 15,
+       plot = pm.intAnno2.test2b)
+
+```
+
+
+```{r fig.height=4.75, fig.width=15.5, message=FALSE, warning=FALSE}
+pm.ref.a <- DotPlot(ref.seur, features = as.vector(unlist(markers.new.s)), group.by = "Anno2",
+        cols = c("midnightblue","darkorange1")) +
+  #coord_flip() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 9.15))+ 
+  scale_color_gradientn(colours  = material.heat(100)) +
+  #scale_x_discrete(limits=rev) + 
+  scale_y_discrete(limits=rev) + 
+  labs(title="NatNeur2021 P21")
+pm.ref.a
+```
+
+
+```{r fig.height=15, fig.width=5.5, message=FALSE, warning=FALSE}
+pm.ref.b <- DotPlot(ref.seur, features = as.vector(unlist(markers.new.s)), group.by = "Anno2",
+        cols = c("midnightblue","darkorange1")) +
+  coord_flip() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.4,size = 9.15))+ 
+  scale_color_gradientn(colours  = material.heat(100)) +
+  #scale_x_discrete(limits=rev) + scale_y_discrete(limits=rev) + 
+  labs(title="NatNeur2021 P21")
+pm.ref.b
+```
+
+
+```{r eval=FALSE, include=FALSE}
+#
+ggsave("figures.integration/check.NatNeur2021/dotplot.new.NatNeur2021.a.pdf",
+       width = 15.5,height = 5.05,
+       plot = pm.ref.a)
+
+#
+ggsave("figures.integration/check.NatNeur2021/dotplot.new.NatNeur2021.b.pdf",
+       width = 6.25,height = 15,
+       plot = pm.ref.b)
+
+
+```
+                    
+           
+            
+## plot0727              
+                
+             
+repeat plot in 20230727                     
+            
+           
+abreast violin plot to show markers: Il13ra1, Il4ra, Calca, Calcb, Nmu, Chat         
+modified violins and dots            
+PBS, INF separated       
+add wiocox.test in each intAnno           
+
+
+```{r paged.print=FALSE}
+head(test1.seur@meta.data)
+```
+
+
+### mod metadata         
+
+
+#### cnt1                   
+
+```{r}
+# cnt1 as PBS/INF           
+test1.seur$cnt1 <- as.character(test1.seur$cnt)
+
+test1.seur$cnt1 <- gsub("Nb5d.","",test1.seur$cnt1)
+
+test1.seur$cnt1 <- factor(test1.seur$cnt1,
+                          levels = c("PBS","INF"))
+
+head(test1.seur$cnt1)
+```
+
+
+#### cnt2       
+
+
+```{r}
+levels(test1.seur$intAnno1)
+```
+
+```{r}
+level.cnt2 <- as.vector(sapply(levels(test1.seur$intAnno1),function(x){
+  paste0(x,c(".PBS",".INF"))
+}))
+level.cnt2
+```
+
+```{r}
+# for violin comparison
+list.cnt2 <- lapply(levels(test1.seur$intAnno1),function(x){
+  paste0(x,c(".PBS",".INF"))
+})
+list.cnt2
+```
+
+
+```{r}
+# cnt2 as intAnno1.PBS/INF
+test1.seur$cnt2 <- factor(paste0(as.character(test1.seur$intAnno1),
+                               ".",
+                               as.character(test1.seur$cnt1)),
+                        levels = level.cnt2)
+
+```
+
+
+```{r}
+head(test1.seur$cnt2)
+```
+
+
+### DEGs                        
+
+
+```{r}
+# DEGs 
+df_test1.DEGs_new <- read.csv("../integration_Nb5d/Baf53cre_Nb.DEGs.PBSvsINF.intAnno2.csv")
+df_test1.DEGs_new$cluster <- factor(df_test1.DEGs_new$cluster,
+                                    levels = c("Nb5d.PBS","Nb5d.INF"))
+head(df_test1.DEGs_new)
+```
+
+
+```{r}
+names_new <- unique(df_test1.DEGs_new$intAnno2)
+names_new
+```
+
+```{r}
+options("max.print")
+```
+
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+## cut1
+cut.padj = 0.05
+cut.log2FC = 0.3  
+  
+cut.pct1 = 0.1
+
+df_test1.DEGs_new %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(intAnno2,cluster) %>% filter ( intAnno2 == "IPAN1") %>% as.data.frame()
+
+df_test1.DEGs_new %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(intAnno2,cluster) %>% filter ( intAnno2 == "IPAN2") %>% as.data.frame()  
+```
+
+
+```{r eval=FALSE, include=FALSE}
+for(n1 in names_new){
+  for(n2 in c("PBS","INF")){
+    
+    up.n <- (df_test1.DEGs_new %>% filter(p_val_adj < cut.padj &
+                                            abs(avg_log2FC) > cut.log2FC &
+                                            pct.1 > cut.pct1) %>%
+               filter(intAnno2 == n1, cluster == paste0("Nb5d.",n2) ))$gene
+    
+    write.table(up.n, paste0("./figures.integration/PBSvsINF.replot/DEGs.GO/cut1.padj_0.05.log2FC_0.3/cut1.DEGs.",n1,"_",n2,"up.txt"),
+                row.names = F, col.names = F, quote = F)
+    
+  }
+}
+```
+
+
+```{r eval=FALSE, include=FALSE}
+write.csv(df_test1.DEGs_new %>% filter(p_val_adj < cut.padj &
+                                         abs(avg_log2FC) > cut.log2FC &
+                                         pct.1 > cut.pct1) %>%
+            group_by(intAnno2,cluster) %>%
+            summarise(up.DEGs = n()) %>% as.data.frame(), "./figures.integration/PBSvsINF.replot/DEGs.GO/PBSvsINF.DEGs.cut1.stat.csv")
+```
+
+```{r}
+pp.stat.DEG <- list()
+```
+
+
+```{r}
+pp.stat.DEG[[1]] <- df_test1.DEGs_new %>% filter(p_val_adj < cut.padj & 
+                           abs(avg_log2FC) > cut.log2FC & 
+                           pct.1 > cut.pct1) %>%
+  group_by(intAnno2,cluster) %>%
+  summarise(up.DEGs = n()) %>% as.data.frame() %>%
+  ggplot(aes(x=intAnno2, y=up.DEGs, color = cluster)) +
+  geom_bar(stat="summary", fun="mean", position = position_dodge(0.75), width = 0.58, fill="white") +
+  theme_classic(base_size = 15) +
+  scale_color_manual(values = color.test1, name="") +
+  labs(title=paste0("up.DEGs stat, pct.1>",cut.pct1,", padj<",cut.padj,", |log2FC|>",cut.log2FC), y = "Proportion") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6),
+        title =element_text(size=12, face='bold'))
+```
+
+```{r fig.width=6.75, fig.height=4}
+pp.stat.DEG[[1]]
+```
+
+```{r eval=FALSE, include=FALSE}
+pdf("./figures.integration/PBSvsINF.replot/DEGs.GO/PBSvsINF.DEGs.cut1.stat.pdf",
+    width = 6,75, height = 4)
+pp.stat.DEG[[1]]
+dev.off()
+```
+
+
+```{r}
+DEGs.IPAN1 <- (df_test1.DEGs_new %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(intAnno2,cluster) %>% filter ( intAnno2 == "IPAN1") %>% as.data.frame())$gene
+
+DEGs.IPAN2 <- (df_test1.DEGs_new %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(intAnno2,cluster) %>% filter ( intAnno2 == "IPAN2") %>% as.data.frame())$gene
+```
+
+
+```{r fig.height=5.5, fig.width=4.8, message=FALSE, warning=FALSE}
+pp.cut1.IPAN1 <- DoHeatmap(subset(test1.seur, subset = intAnno1 == "IPAN1"), slot = "scale.data", disp.min = -1, disp.max = 2,
+          features = DEGs.IPAN1[c(43:166,1:42)], group.by = "cnt1",
+          group.colors = color.test1) + guides(color=FALSE) + theme(axis.text.y = element_text(size=2.25),
+                                                                         plot.margin = unit(c(0.3,0.3,0.3,0.3),"cm")) +
+  labs(title = "cut1, IPAN1")
+pp.cut1.IPAN1
+```
+
+
+```{r fig.height=3.2, fig.width=4.8, message=FALSE, warning=FALSE}
+pp.cut1.IPAN2 <- DoHeatmap(subset(test1.seur, subset = intAnno1 == "IPAN2"), slot = "scale.data", disp.min = -1, disp.max = 2,
+          features = DEGs.IPAN2[c(16:78,1:15)], group.by = "cnt1",
+          group.colors = color.test1) + guides(color=FALSE) + theme(axis.text.y = element_text(size=2.4),
+                                                                         plot.margin = unit(c(0.3,0.3,0.3,0.3),"cm")) +
+  labs(title = "cut1, IPAN2")
+pp.cut1.IPAN2
+```
+
+```{r eval=FALSE, include=FALSE}
+#
+pdf("./figures.integration/PBSvsINF.replot/DEGs.GO/PBSvsINF.DEGs.cut1.IPAN1.heatmap.pdf",
+    width = 4.8, height = 5.5)
+pp.cut1.IPAN1
+dev.off()
+
+#
+pdf("./figures.integration/PBSvsINF.replot/DEGs.GO/PBSvsINF.DEGs.cut1.IPAN2.heatmap.pdf",
+    width = 4.8, height = 3.2)
+pp.cut1.IPAN2
+dev.off()
+
+```
+
+
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+## cut2
+cut.padj = 0.01
+cut.log2FC = log2(1.5)  
+  
+cut.pct1 = 0.1
+
+df_test1.DEGs_new %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(intAnno2,cluster) %>% filter ( intAnno2 == "IPAN1") %>% as.data.frame()
+df_test1.DEGs_new %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(intAnno2,cluster) %>% filter ( intAnno2 == "IPAN2") %>% as.data.frame()  
+```
+
+
+```{r eval=FALSE, include=FALSE}
+for(n1 in names_new){
+  for(n2 in c("PBS","INF")){
+    
+    up.n <- (df_test1.DEGs_new %>% filter(p_val_adj < cut.padj &
+                                            abs(avg_log2FC) > cut.log2FC &
+                                            pct.1 > cut.pct1) %>%
+               filter(intAnno2 == n1, cluster == paste0("Nb5d.",n2) ))$gene
+    
+    write.table(up.n, paste0("./figures.integration/PBSvsINF.replot/DEGs.GO/cut2.padj_0.01.FC_1.5/cut2.DEGs.",n1,"_",n2,"up.txt"),
+                row.names = F, col.names = F, quote = F)
+    
+  }
+}
+```
+
+
+```{r eval=FALSE, include=FALSE}
+write.csv(df_test1.DEGs_new %>% filter(p_val_adj < cut.padj &
+                                         abs(avg_log2FC) > cut.log2FC &
+                                         pct.1 > cut.pct1) %>%
+            group_by(intAnno2,cluster) %>%
+            summarise(up.DEGs = n()) %>% as.data.frame(), "./figures.integration/PBSvsINF.replot/DEGs.GO/PBSvsINF.DEGs.cut2.stat.csv")
+```
+
+```{r}
+#pp.stat.DEG <- list()
+```
+
+
+```{r}
+pp.stat.DEG[[2]] <- df_test1.DEGs_new %>% filter(p_val_adj < cut.padj & 
+                           abs(avg_log2FC) > cut.log2FC & 
+                           pct.1 > cut.pct1) %>%
+  group_by(intAnno2,cluster) %>%
+  summarise(up.DEGs = n()) %>% as.data.frame() %>%
+  ggplot(aes(x=intAnno2, y=up.DEGs, color = cluster)) +
+  geom_bar(stat="summary", fun="mean", position = position_dodge(0.75), width = 0.58, fill="white") +
+  theme_classic(base_size = 15) +
+  scale_color_manual(values = color.test1, name="") +
+  labs(title=paste0("up.DEGs stat, pct.1>",cut.pct1,", padj<",cut.padj,", |log2FC|>","log2(1.5)"), y = "Proportion") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6),
+        title =element_text(size=12, face='bold'))
+```
+
+```{r fig.width=6.75, fig.height=4}
+pp.stat.DEG[[2]]
+```
+
+```{r eval=FALSE, include=FALSE}
+pdf("./figures.integration/PBSvsINF.replot/DEGs.GO/PBSvsINF.DEGs.cut2.stat.pdf",
+    width = 6,75, height = 4)
+pp.stat.DEG[[2]]
+dev.off()
+```
+
+
+```{r}
+DEGs.IPAN1 <- (df_test1.DEGs_new %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(intAnno2,cluster) %>% filter ( intAnno2 == "IPAN1") %>% as.data.frame())$gene
+
+DEGs.IPAN2 <- (df_test1.DEGs_new %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(intAnno2,cluster) %>% filter ( intAnno2 == "IPAN2") %>% as.data.frame())$gene
+```
+
+
+```{r fig.height=4, fig.width=4.8, message=FALSE, warning=FALSE}
+pp.cut2.IPAN1 <- DoHeatmap(subset(test1.seur, subset = intAnno1 == "IPAN1"), slot = "scale.data", disp.min = -1, disp.max = 2,
+          features = DEGs.IPAN1[c(20:113,1:19)], group.by = "cnt1",
+          group.colors = color.test1) + guides(color=FALSE) + theme(axis.text.y = element_text(size=2.35),
+                                                                         plot.margin = unit(c(0.3,0.3,0.3,0.3),"cm")) +
+  labs(title = "cut2, IPAN1")
+pp.cut2.IPAN1
+```
+
+
+```{r fig.height=2.4, fig.width=4.8, message=FALSE, warning=FALSE}
+pp.cut2.IPAN2 <- DoHeatmap(subset(test1.seur, subset = intAnno1 == "IPAN2"), slot = "scale.data", disp.min = -1, disp.max = 2,
+          features = DEGs.IPAN2[c(10:52,1:9)], group.by = "cnt1",
+          group.colors = color.test1) + guides(color=FALSE) + theme(axis.text.y = element_text(size = 2.35),
+                                                                         plot.margin = unit(c(0.3,0.3,0.3,0.3),"cm")) +
+  labs(title = "cut2, IPAN2")
+pp.cut2.IPAN2
+```
+
+
+```{r eval=FALSE, include=FALSE}
+#
+pdf("./figures.integration/PBSvsINF.replot/DEGs.GO/PBSvsINF.DEGs.cut2.IPAN1.heatmap.pdf",
+    width = 4.8, height = 4)
+pp.cut2.IPAN1
+dev.off()
+
+#
+pdf("./figures.integration/PBSvsINF.replot/DEGs.GO/PBSvsINF.DEGs.cut2.IPAN2.heatmap.pdf",
+    width = 4.8, height = 2.4)
+pp.cut2.IPAN2
+dev.off()
+
+```
+
+
+### markers            
+
+
+```{r}
+check.plot <- c("Il13ra1","Il4ra","Calca","Calcb",
+                "Nmu","Chat")
+
+vln_df <- data.frame(test1.seur@meta.data,
+                     t(test1.seur@assays$RNA@data[check.plot,]))
+
+head(vln_df)
+```
+
+
+```{r}
+pp.vln <- list()
+
+pp.vln <- lapply(1:5, function(jj){
+  pp.tmp <- ggplot(vln_df, aes(x = cnt2, y= get(check.plot[jj]), fill = cnt1)) +
+    geom_violin(trim = TRUE, scale = 'width', lwd=0.1) +
+    labs(x="",y="",title=check.plot[jj]) + NoLegend() +
+    #scale_fill_manual(values = ggsci::pal_d3("category20c")(20)[c(1,2)]) +
+    scale_fill_manual(values = color.test1) +
+    theme(axis.title.x = element_blank(),
+          axis.text.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          axis.line = element_line(color = "black", size = 0.1),
+          panel.grid = element_blank(),
+          panel.border = element_blank(),
+          panel.background = element_blank(),
+          plot.margin = unit(c(0.03,0.1,0,0.1),"cm")) + coord_cartesian(ylim=c(0,4.35)) + geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1) +
+    stat_summary(fun.y=mean, geom="point", shape=23, size=0.65, color="black", fill="white", alpha=0.75)
+    
+})
+
+pp.vln[[6]] <- ggplot(vln_df, aes(x = cnt2, y= get(check.plot[6]), fill = cnt1)) +
+    geom_violin(trim = TRUE, scale = 'width', lwd=0.1) +
+    labs(x="",y="",title=check.plot[6]) + NoLegend() +
+    #scale_fill_manual(values = ggsci::pal_d3("category20c")(20)[c(1,2)]) +
+    scale_fill_manual(values = color.test1) +
+    theme(axis.title.x = element_blank(),
+          #axis.text.x = element_blank(),
+          axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 8.1),
+          #axis.ticks.x = element_blank(),
+          axis.ticks.x = element_line(color = "black",size=0.05),
+          axis.line = element_line(color = "black", size = 0.1),
+          panel.grid = element_blank(),
+          panel.border = element_blank(),
+          panel.background = element_blank(),
+          plot.margin = unit(c(0.03,0.1,0,0.1),"cm")) + coord_cartesian(ylim=c(0,4.35)) + geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1) +
+    stat_summary(fun.y=mean, geom="point", shape=23, size=0.65, color="black", fill="white", alpha=0.75)
+
+```
+
+```{r fig.height=6, fig.width=8, message=FALSE, warning=FALSE}
+cowplot::plot_grid(
+  plotlist = pp.vln,
+  ncol = 1,
+  rel_heights = c(rep(1,5),1.55))
+```
+
+
+```{r}
+pp.vln.s <- list()
+
+pp.vln.s <- lapply(1:5, function(jj){
+  pp.tmp <- ggplot(vln_df, aes(x = cnt2, y= get(check.plot[jj]), fill = cnt1)) +
+    geom_violin(trim = TRUE, scale = 'width', lwd=0.1) +
+    labs(x="",y="",title=check.plot[jj]) + NoLegend() +
+    #scale_fill_manual(values = ggsci::pal_d3("category20c")(20)[c(1,2)]) +
+    scale_fill_manual(values = color.test1) +
+    theme(axis.title.x = element_blank(),
+          axis.text.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          axis.line = element_line(color = "black", size = 0.1),
+          panel.grid = element_blank(),
+          panel.border = element_blank(),
+          panel.background = element_blank(),
+          plot.margin = unit(c(0.03,0.1,0,0.1),"cm")) + coord_cartesian(ylim=c(0,4.35)) + geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1) +
+    stat_summary(fun.y=mean, geom="point", shape=23, size=0.45, color="black", fill="white", alpha=0.75) +
+    stat_compare_means(aes(label= ..p.signif..),
+                       method = "wilcox.test",
+                       comparisons = list.cnt2,
+                       label.y = c(rep(3.75,16)),
+                       size = 2.5)
+    
+})
+
+pp.vln.s[[6]] <- ggplot(vln_df, aes(x = cnt2, y= get(check.plot[6]), fill = cnt1)) +
+    geom_violin(trim = TRUE, scale = 'width', lwd=0.1) +
+    labs(x="",y="",title=check.plot[6]) + NoLegend() +
+    #scale_fill_manual(values = ggsci::pal_d3("category20c")(20)[c(1,2)]) +
+  scale_fill_manual(values = color.test1) +
+    theme(axis.title.x = element_blank(),
+          #axis.text.x = element_blank(),
+          axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 8.1),
+          #axis.ticks.x = element_blank(),
+          axis.ticks.x = element_line(color = "black",size=0.05),
+          axis.line = element_line(color = "black", size = 0.1),
+          panel.grid = element_blank(),
+          panel.border = element_blank(),
+          panel.background = element_blank(),
+          plot.margin = unit(c(0.03,0.1,0,0.1),"cm")) + coord_cartesian(ylim=c(0,4.35)) + geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1) +
+    stat_summary(fun.y=mean, geom="point", shape=23, size=0.45, color="black", fill="white", alpha=0.75) +
+    stat_compare_means(aes(label= ..p.signif..),
+                       method = "wilcox.test",
+                       comparisons = list.cnt2,
+                       label.y = c(rep(3.75,16)),
+                       size = 2.5)
+
+```
+
+
+```{r fig.height=6, fig.width=8, message=FALSE, warning=FALSE}
+cowplot::plot_grid(
+  plotlist = pp.vln.s,
+  ncol = 1,
+  rel_heights = c(rep(1,5),1.55))
+```
+
+
+
+```{r}
+pp.vln.a <- list()
+
+pp.vln.a <- lapply(1:5, function(jj){
+  pp.tmp <- ggplot(vln_df, aes(x = intAnno1, y= get(check.plot[jj]), fill = intAnno1)) +
+    geom_violin(trim = TRUE, scale = 'width', lwd=0.1) +
+    labs(x="",y="",title=check.plot[jj]) + NoLegend() +
+    scale_fill_manual(values = color.A1) +
+    theme(axis.title.x = element_blank(),
+          axis.text.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          axis.line = element_line(color = "black", size = 0.1),
+          panel.grid = element_blank(),
+          panel.border = element_blank(),
+          panel.background = element_blank(),
+          plot.margin = unit(c(0.03,0.1,0,0.1),"cm")) + coord_cartesian(ylim=c(0,4.35)) + geom_boxplot(outlier.size = 0, fill="white", width=0.12, size=0.1) +
+    stat_summary(fun.y=mean, geom="point", shape=23, size=0.45, color="black", fill="white", alpha=0.75)
+    
+})
+
+pp.vln.a[[6]] <- ggplot(vln_df, aes(x = intAnno1, y= get(check.plot[6]), fill = intAnno1)) +
+    geom_violin(trim = TRUE, scale = 'width', lwd=0.1) +
+    labs(x="",y="",title=check.plot[6]) + NoLegend() +
+    scale_fill_manual(values = color.A1) +
+    theme(axis.title.x = element_blank(),
+          #axis.text.x = element_blank(),
+          axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 8.1),
+          #axis.ticks.x = element_blank(),
+          axis.ticks.x = element_line(color = "black",size=0.05),
+          axis.line = element_line(color = "black", size = 0.1),
+          panel.grid = element_blank(),
+          panel.border = element_blank(),
+          panel.background = element_blank(),
+          plot.margin = unit(c(0.03,0.1,0,0.1),"cm")) + coord_cartesian(ylim=c(0,4.35)) + geom_boxplot(outlier.size = 0, fill="white", width=0.12, size=0.1) +
+    stat_summary(fun.y=mean, geom="point", shape=23, size=0.45, color="black", fill="white", alpha=0.75)
+
+```
+
+
+```{r fig.height=6, fig.width=6, message=FALSE, warning=FALSE}
+cowplot::plot_grid(
+  plotlist = pp.vln.a,
+  ncol = 1,
+  rel_heights = c(rep(1,5),1.4))
+```
+
+
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+#
+pdf("./figures.integration/PBSvsINF.replot/Markers/check.markers.violin1.pdf",
+    width = 8, height = 6)
+cowplot::plot_grid(
+  plotlist = pp.vln,
+  ncol = 1,
+  rel_heights = c(rep(1,5),1.55))
+dev.off()
+
+#
+pdf("./figures.integration/PBSvsINF.replot/Markers/check.markers.violin2.pdf",
+    width = 8, height = 6.5)
+cowplot::plot_grid(
+  plotlist = pp.vln.s,
+  ncol = 1,
+  rel_heights = c(rep(1,5),1.55))
+dev.off()
+
+#
+pdf("./figures.integration/PBSvsINF.replot/Markers/check.markers.violin3.pdf",
+    width = 6, height = 6)
+cowplot::plot_grid(
+  plotlist = pp.vln.a,
+  ncol = 1,
+  rel_heights = c(rep(1,5),1.4))
+dev.off()
+```
+
+
+```{r fig.width=9, fig.height=5}
+FeaturePlot(test1.seur, features = check.plot, ncol = 3)
+```
+
+```{r eval=FALSE, include=FALSE}
+#
+pdf("./figures.integration/PBSvsINF.replot/Markers/check.markers.featureplot.pdf",
+    width = 9.6, height = 5)
+FeaturePlot(test1.seur, features = check.plot, ncol = 3)
+dev.off()
+
+pdf("./figures.integration/PBSvsINF.replot/Markers/check.markers.featureplot.small.pdf",
+    width = 9.6, height = 5)
+FeaturePlot(test1.seur, features = check.plot, ncol = 3, raster = T, pt.size = 3.5)
+dev.off()
+```
+
+
+```{r fig.width=9, fig.height=5}
+FeaturePlot(subset(test1.seur, subset = cnt1 == "PBS"), features = check.plot, ncol = 3)
+```
+
+```{r fig.width=9, fig.height=5}
+FeaturePlot(test1.seur, features = check.plot, ncol = 3, pt.size = 1)
+FeaturePlot(subset(test1.seur, subset = cnt1 == "PBS"), features = check.plot, ncol = 3, pt.size = 1)
+```
+
+```{r fig.width=9, fig.height=5}
+FeaturePlot(test1.seur, features = check.plot, ncol = 3, pt.size = 2)
+FeaturePlot(subset(test1.seur, subset = cnt1 == "PBS"), features = check.plot, ncol = 3, pt.size = 2)
+```
+
+```{r fig.width=7.6, fig.height=3.6}
+DotPlot(test1.seur, features = rev(check.plot), group.by = "cnt2")  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+```
+
+
+```{r fig.width=7.6, fig.height=3.6}
+DotPlot(test1.seur, features = rev(check.plot), group.by = "cnt2", cols = c("midnightblue","darkorange1"))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+```
+
+```{r eval=FALSE, include=FALSE}
+#
+pdf("./figures.integration/PBSvsINF.replot/Markers/check.markers.dotplot1a.pdf",
+    width = 7.9, height = 3.6)
+DotPlot(test1.seur, features = rev(check.plot), group.by = "cnt2", cols = c("midnightblue","darkorange1"))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+dev.off()
+
+#
+pdf("./figures.integration/PBSvsINF.replot/Markers/check.markers.dotplot1b.pdf",
+    width = 7.9, height = 3.6)
+DotPlot(test1.seur, features = rev(check.plot), group.by = "cnt2", cols = material.heat(100))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6)) +
+  scale_color_gradientn(colours  = material.heat(100))
+dev.off()
+
+#
+pdf("./figures.integration/PBSvsINF.replot/Markers/check.markers.dotplot2a.pdf",
+    width = 6.3, height = 3.6)
+DotPlot(test1.seur, features = rev(check.plot), group.by = "intAnno1", cols = c("midnightblue","darkorange1"))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+dev.off()
+
+#
+pdf("./figures.integration/PBSvsINF.replot/Markers/check.markers.dotplot2b.pdf",
+    width = 6.3, height = 3.6)
+DotPlot(test1.seur, features = rev(check.plot), group.by = "intAnno1", cols = material.heat(100))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6)) +
+  scale_color_gradientn(colours  = material.heat(100))
+dev.off()
+```
+
+
+#### violin        
+
+```{r}
+pp.IPAN1 <- list()
+```
+
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE, fig.width=2.5,fig.height=4}
+pp.IPAN1[["Nmu"]] <- VlnPlot(subset(test1.seur,subset=intAnno1 %in% c("IPAN1")), assay = "RNA", features = c("Nmu"), group.by = "cnt", ncol = 1, cols = color.test1, pt.size = 0.01,
+                   combine = T) + 
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) +
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) + coord_cartesian(ylim=c(0,5)) + ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF")),
+                               label.y = c(4.35),
+                               size=3.5
+                               ) + NoLegend()
+pp.IPAN1[["Nmu"]]
+```
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE, fig.width=2.5,fig.height=4}
+pp.IPAN1[["Calcb"]] <- VlnPlot(subset(test1.seur,subset=intAnno1 %in% c("IPAN1")), assay = "RNA", features = c("Calcb"), group.by = "cnt", ncol = 1, cols = color.test1, pt.size = 0.01,
+                   combine = T) + 
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) +
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) + coord_cartesian(ylim=c(0,5)) + ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF")),
+                               label.y = c(4.05),
+                               size=3.5
+                               ) + NoLegend()
+pp.IPAN1[["Calcb"]]
+```
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE, fig.width=2.5,fig.height=4}
+pp.IPAN1[["Calca"]] <- VlnPlot(subset(test1.seur,subset=intAnno1 %in% c("IPAN1")), assay = "RNA", features = c("Calca"), group.by = "cnt", ncol = 1, cols = color.test1, pt.size = 0,
+                   combine = T) + 
+    #geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) +
+  geom_point(size=0.3) +
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) + coord_cartesian(ylim=c(0,5)) + ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF")),
+                               label.y = c(2.15),
+                               size=3.5
+                               ) + NoLegend()
+pp.IPAN1[["Calca"]]
+```
+
+
+```{r eval=FALSE, include=FALSE}
+#
+pdf("./figures.integration/PBSvsINF.replot/Markers/violin.IPAN1.Nmu.pdf",
+    width = 2.4,height = 4.2)
+pp.IPAN1[["Nmu"]]
+dev.off()
+
+#
+pdf("./figures.integration/PBSvsINF.replot/Markers/violin.IPAN1.Calcb.pdf",
+    width = 2.4,height = 4.2)
+pp.IPAN1[["Calcb"]]
+dev.off()
+
+#
+pdf("./figures.integration/PBSvsINF.replot/Markers/violin.IPAN1.Calca.pdf",
+    width = 2.4,height = 4.2)
+pp.IPAN1[["Calca"]]
+dev.off()
+```
+
+
+#### violin-Il13ra1+                    
+
+```{r}
+ppi.IPAN1 <- list()
+```
+
+
+```{r}
+test1.seur$Il13ra1p <- test1.seur@assays$RNA@data["Il13ra1",] >0
+```
+
+
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE, fig.width=2.5,fig.height=4}
+ppi.IPAN1[["Nmu"]] <- VlnPlot(subset(test1.seur,subset=intAnno1 %in% c("IPAN1") & Il13ra1p==TRUE), assay = "RNA", features = c("Nmu"), group.by = "cnt", ncol = 1, cols = color.test1, pt.size = 0.01,
+                   combine = T) + 
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) +
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) + coord_cartesian(ylim=c(0,5)) + ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF")),
+                               label.y = c(4.05),
+                               size=3.5
+                               ) + NoLegend()
+ppi.IPAN1[["Nmu"]]
+```
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE, fig.width=2.5,fig.height=4}
+ppi.IPAN1[["Calcb"]] <- VlnPlot(subset(test1.seur,subset=intAnno1 %in% c("IPAN1") & Il13ra1p==TRUE), assay = "RNA", features = c("Calcb"), group.by = "cnt", ncol = 1, cols = color.test1, pt.size = 0.01,
+                   combine = T) + 
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) +
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) + coord_cartesian(ylim=c(0,5)) + ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF")),
+                               label.y = c(3.6),
+                               size=3.5
+                               ) + NoLegend()
+ppi.IPAN1[["Calcb"]]
+```
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE, fig.width=2.5,fig.height=4}
+ppi.IPAN1[["Calca"]] <- VlnPlot(subset(test1.seur,subset=intAnno1 %in% c("IPAN1") & Il13ra1p==TRUE), assay = "RNA", features = c("Calca"), group.by = "cnt", ncol = 1, cols = color.test1, pt.size = 0,
+                   combine = T) + 
+    #geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) +
+  geom_point(size=0.3) +
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) + coord_cartesian(ylim=c(0,5)) + ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF")),
+                               label.y = c(2.15),
+                               size=3.5
+                               ) + NoLegend()
+ppi.IPAN1[["Calca"]]
+```
+
+
+```{r eval=FALSE, include=FALSE}
+#
+pdf("./figures.integration/PBSvsINF.replot/Markers/violin.IPAN1_Il13ra1+.Nmu.pdf",
+    width = 2.4,height = 4.2)
+ppi.IPAN1[["Nmu"]]
+dev.off()
+
+#
+pdf("./figures.integration/PBSvsINF.replot/Markers/violin.IPAN1_Il13ra1+.Calcb.pdf",
+    width = 2.4,height = 4.2)
+ppi.IPAN1[["Calcb"]]
+dev.off()
+
+#
+pdf("./figures.integration/PBSvsINF.replot/Markers/violin.IPAN1_Il13ra1+.Calca.pdf",
+    width = 2.4,height = 4.2)
+ppi.IPAN1[["Calca"]]
+dev.off()
+```
+
+
+
+### check ligand-receptor                       
+
+
+##### using markers in batch PBS_INF            
+
+
+```{r message=FALSE, warning=FALSE, paged.print=TRUE}
+#Idents(test1.seur) <- "intAnno1"
+
+#test1.markers.pre <- FindAllMarkers(test1.seur, only.pos = TRUE, min.pct = 0.05,
+#                                  assay = "RNA",
+#                                  test.use = "MAST",
+#                                  logfc.threshold = 0.25)
+#test1.markers.pre <- read.table("Baf53cre_Nb.markers_intAnno1.PBSvsINF.csv", header = TRUE, sep = ",")
+#test1.markers.pre %>% group_by(cluster) %>% top_n(n = 8, wt = avg_log2FC)
+```
+
+
+             
+```{r eval=FALSE, include=FALSE}
+#write.table(test1.markers.pre, 
+#            "Baf53cre_Nb.markers_intAnno1.PBSvsINF.csv", 
+#            col.names = TRUE,
+#            row.names = FALSE,
+#            quote = F,
+#            sep = ",")
+```
+
+
+##### directly using markers in SCT_intAnno1             
+
+```{r}
+markers.new <- read.csv("../integration_Nb5d/Baf53cre_Nb.markers.SCT_intAnno1.202402.csv")
+markers.new$cluster <- factor(as.character(markers.new$cluster),
+                              levels = levels(GEX.seur$intAnno1))
+head(markers.new)
+```
+
+
+
+### CellChat
+
+
+```{r}
+CellChat.secreting <- list(ligand=as.vector(unlist(read.table("./figures.integration/PBSvsINF.replot/Markers/CellChat.list/CellChat.interaction.secreting.ligand_all.txt"))),
+                           receptor=as.vector(unlist(read.table("./figures.integration/PBSvsINF.replot/Markers/CellChat.list/CellChat.interaction.secreting.receptor_all.txt"))))
+```
+
+
+```{r}
+lapply(CellChat.secreting,length)
+```
+
+
+```{r}
+lapply(CellChat.secreting,head)
+```
+
+
+
+#### markers             
+
+
+
+```{r}
+
+
+# sort all ligand genes in significant markers
+markers.new_ligand.pct_0.15.padj_0.001 <- (markers.new %>% group_by(cluster) %>% 
+                       filter(pct.1>0.15 & p_val_adj < 0.001 & gene %in% CellChat.secreting$ligand) %>%
+                       #top_n(n = 48, wt = avg_log2FC) %>%
+                       ungroup() %>%
+                       arrange(desc(avg_log2FC*pct.1),gene) %>%
+                       distinct(gene, .keep_all = TRUE) %>%
+                       arrange(cluster,p_val_adj)) %>% as.data.frame()
+
+# sort all receptor genes in significant markers
+markers.new_receptor.pct_0.15.padj_0.001 <- (markers.new %>% group_by(cluster) %>% 
+                       filter(pct.1>0.15 & p_val_adj < 0.001 & gene %in% CellChat.secreting$receptor) %>%
+                       #top_n(n = 48, wt = avg_log2FC) %>%
+                       ungroup() %>%
+                       arrange(desc(avg_log2FC*pct.1),gene) %>%
+                       distinct(gene, .keep_all = TRUE) %>%
+                       arrange(cluster,p_val_adj)) %>% as.data.frame()
+```
+
+
+```{r}
+dim(markers.new_ligand.pct_0.15.padj_0.001)[1]
+dim(markers.new_receptor.pct_0.15.padj_0.001)[1]
+```
+
+```{r paged.print=FALSE}
+markers.new_ligand.pct_0.15.padj_0.001
+```
+
+
+```{r paged.print=FALSE}
+markers.new_receptor.pct_0.15.padj_0.001
+```
+
+
+```{r eval=FALSE, include=FALSE}
+write.csv(markers.new_ligand.pct_0.15.padj_0.001, "figures.integration/PBSvsINF.replot/Markers/CellChat.list/CellChat.for_ligand.pct0.15_padj0.001.csv")
+
+write.csv(markers.new_receptor.pct_0.15.padj_0.001, "figures.integration/PBSvsINF.replot/Markers/CellChat.list/CellChat.for_receptor.pct0.15_padj0.001.csv")
+
+```
+
+
+#### PBSvsINF            
+
+```{r fig.height=5.5, fig.width=7.2}
+DotPlot(test1.seur, features = markers.new_ligand.pct_0.15.padj_0.001$gene, group.by = "intAnno1",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 10.15))+ scale_y_discrete(limits=rev) + labs(title="ligand.pct_0.15.padj_0.001") +
+  scale_color_gradientn(colours  = material.heat(100))
+```
+
+```{r fig.height=5, fig.width=13.5}
+DotPlot(test1.seur, features = markers.new_receptor.pct_0.15.padj_0.001$gene, group.by = "intAnno1",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 10))+ scale_y_discrete(limits=rev) + labs(title="receptor.pct_0.15.padj_0.001") +
+  scale_color_gradientn(colours  = material.heat(100))
+```
+
+
+
+```{r eval=FALSE, include=FALSE}
+#
+pdf("./figures.integration/PBSvsINF.replot/Markers/CellChat.list/PBSvsINF.CellChat.for_ligand.pct0.15_padj0.001.mod.a.pdf",
+    width = 7.5, height = 4.8)
+DotPlot(test1.seur, features = markers.new_ligand.pct_0.15.padj_0.001$gene, group.by = "intAnno1",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 10.15))+ scale_y_discrete(limits=rev) + labs(title="ligand.pct_0.15.padj_0.001") +
+  scale_color_gradientn(colours  = material.heat(100))
+dev.off()
+
+
+#
+pdf("./figures.integration/PBSvsINF.replot/Markers/CellChat.list/PBSvsINF.CellChat.for_ligand.pct0.15_padj0.001.mod.b.pdf",
+    width = 6.4, height = 6)
+DotPlot(test1.seur, features = markers.new_ligand.pct_0.15.padj_0.001$gene, group.by = "intAnno1",
+        cols = c("midnightblue","darkorange1")) +
+  coord_flip() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.4,size = 9.15))+
+  #scale_y_discrete(limits=rev) + 
+  labs(title="ligand.pct_0.15.padj_0.001") +
+  scale_color_gradientn(colours  = material.heat(100))
+dev.off()
+
+
+#
+pdf("./figures.integration/PBSvsINF.replot/Markers/CellChat.list/PBSvsINF.CellChat.for_receptor.pct0.15_padj0.001.mod.a.pdf",
+    width = 13.5, height = 4.8)
+DotPlot(test1.seur, features = markers.new_receptor.pct_0.15.padj_0.001$gene, group.by = "intAnno1",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 10))+ scale_y_discrete(limits=rev) + labs(title="receptor.pct_0.15.padj_0.001") +
+  scale_color_gradientn(colours  = material.heat(100))
+dev.off()
+
+#
+pdf("./figures.integration/PBSvsINF.replot/Markers/CellChat.list/PBSvsINF.CellChat.for_receptor.pct0.15_padj0.001.mod.b.pdf",
+    width = 6.4, height = 12)
+DotPlot(test1.seur, features = markers.new_receptor.pct_0.15.padj_0.001$gene, group.by = "intAnno1",
+        cols = c("midnightblue","darkorange1")) +
+    coord_flip() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.4,size = 9.15))+
+  #scale_y_discrete(limits=rev) + 
+  labs(title="receptor.pct_0.15.padj_0.001") +
+  scale_color_gradientn(colours  = material.heat(100))
+dev.off()
+```
+
+
+#### NatNeur2021          
+
+```{r fig.height=4.5, fig.width=7.2}
+DotPlot(ref.seur, features = markers.new_ligand.pct_0.15.padj_0.001$gene, group.by = "Anno2",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 10.15))+ scale_y_discrete(limits=rev) + labs(title="ligand.pct_0.15.padj_0.001") +
+  scale_color_gradientn(colours  = material.heat(100))
+```
+
+```{r fig.height=4.5, fig.width=13.5}
+DotPlot(ref.seur, features = markers.new_receptor.pct_0.15.padj_0.001$gene, group.by = "Anno2",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 10))+ scale_y_discrete(limits=rev) + labs(title="receptor.pct_0.15.padj_0.001") +
+  scale_color_gradientn(colours  = material.heat(100))
+```
+
+```{r eval=FALSE, include=FALSE}
+#
+pdf("./figures.integration/check.NatNeur2021/NatNeur2021.CellChat.for_ligand.pct0.15_padj0.001.mod.a.pdf",
+    width = 7.5, height = 4.8)
+DotPlot(ref.seur, features = markers.new_ligand.pct_0.15.padj_0.001$gene, group.by = "Anno2",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 10.15))+ scale_y_discrete(limits=rev) + labs(title="ligand.pct_0.15.padj_0.001") +
+  scale_color_gradientn(colours  = material.heat(100))
+dev.off()
+
+
+#
+pdf("./figures.integration/check.NatNeur2021/NatNeur2021.CellChat.for_ligand.pct0.15_padj0.001.mod.b.pdf",
+    width = 6, height = 6)
+DotPlot(ref.seur, features = markers.new_ligand.pct_0.15.padj_0.001$gene, group.by = "Anno2",
+        cols = c("midnightblue","darkorange1")) +
+  coord_flip() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.4,size = 9.15))+
+  #scale_y_discrete(limits=rev) + 
+  labs(title="ligand.pct_0.15.padj_0.001") +
+  scale_color_gradientn(colours  = material.heat(100))
+dev.off()
+
+
+#
+pdf("./figures.integration/check.NatNeur2021/NatNeur2021CellChat.for_receptor.pct0.15_padj0.001.mod.a.pdf",
+    width = 13.5, height = 4.5)
+DotPlot(ref.seur, features = markers.new_receptor.pct_0.15.padj_0.001$gene, group.by = "Anno2",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 10))+ scale_y_discrete(limits=rev) + labs(title="receptor.pct_0.15.padj_0.001") +
+  scale_color_gradientn(colours  = material.heat(100))
+dev.off()
+
+#
+pdf("./figures.integration/check.NatNeur2021/NatNeur2021CellChat.for_receptor.pct0.15_padj0.001.mod.b.pdf",
+    width = 6, height = 12)
+DotPlot(ref.seur, features = markers.new_receptor.pct_0.15.padj_0.001$gene, group.by = "Anno2",
+        cols = c("midnightblue","darkorange1")) +
+    coord_flip() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.4,size = 9.15))+
+  #scale_y_discrete(limits=rev) + 
+  labs(title="receptor.pct_0.15.padj_0.001") +
+  scale_color_gradientn(colours  = material.heat(100))
+dev.off()
+```
+
+
+
+### CellTalkDB           
+       
+
+
+```{r}
+mat.lr <- read.table("figures.integration/PBSvsINF.replot/Markers/CellTalkDB.list/CellTalkDB.20230203.mouse_lr_pair.txt", header = T)
+head(mat.lr)
+```
+
+
+```{r}
+length(unique(mat.lr$ligand_gene_symbol))
+length(unique(mat.lr$receptor_gene_symbol))
+```
+
+
+
+#### markers             
+
+
+
+```{r}
+
+
+# sort all ligand genes in significant markers
+markers.new_ligand.pct_0.15.padj_0.001 <- (markers.new %>% group_by(cluster) %>% 
+                       filter(pct.1>0.15 & p_val_adj < 0.001 & gene %in% unique(mat.lr$ligand_gene_symbol)) %>%
+                       #top_n(n = 48, wt = avg_log2FC) %>%
+                       ungroup() %>%
+                       arrange(desc(avg_log2FC*pct.1),gene) %>%
+                       distinct(gene, .keep_all = TRUE) %>%
+                       arrange(cluster,p_val_adj)) %>% as.data.frame()
+
+# sort all receptor genes in significant markers
+markers.new_receptor.pct_0.15.padj_0.001 <- (markers.new %>% group_by(cluster) %>% 
+                       filter(pct.1>0.15 & p_val_adj < 0.001 & gene %in% unique(mat.lr$receptor_gene_symbol)) %>%
+                       #top_n(n = 48, wt = avg_log2FC) %>%
+                       ungroup() %>%
+                       arrange(desc(avg_log2FC*pct.1),gene) %>%
+                       distinct(gene, .keep_all = TRUE) %>%
+                       arrange(cluster,p_val_adj)) %>% as.data.frame()
+```
+
+
+```{r}
+dim(markers.new_ligand.pct_0.15.padj_0.001)[1]
+dim(markers.new_receptor.pct_0.15.padj_0.001)[1]
+```
+
+```{r paged.print=FALSE}
+markers.new_ligand.pct_0.15.padj_0.001
+```
+
+
+```{r paged.print=FALSE}
+markers.new_receptor.pct_0.15.padj_0.001
+```
+
+
+```{r eval=FALSE, include=FALSE}
+write.csv(markers.new_ligand.pct_0.15.padj_0.001, "figures.integration/PBSvsINF.replot/Markers/CellTalkDB.list/CellTalkDB.for_ligand.pct0.15_padj0.001.csv")
+
+write.csv(markers.new_receptor.pct_0.15.padj_0.001, "figures.integration/PBSvsINF.replot/Markers/CellTalkDB.list/CellTalkDB.for_receptor.pct0.15_padj0.001.csv")
+
+```
+
+
+#### PBSvsINF            
+
+```{r fig.height=5.5, fig.width=16.6}
+DotPlot(test1.seur, features = markers.new_ligand.pct_0.15.padj_0.001$gene, group.by = "intAnno1",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 10.15))+ scale_y_discrete(limits=rev) + labs(title="ligand.pct_0.15.padj_0.001") +
+  scale_color_gradientn(colours  = material.heat(100))
+```
+
+```{r fig.height=5.5, fig.width=23.5}
+DotPlot(test1.seur, features = markers.new_receptor.pct_0.15.padj_0.001$gene, group.by = "intAnno1",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 10))+ scale_y_discrete(limits=rev) + labs(title="receptor.pct_0.15.padj_0.001") +
+  scale_color_gradientn(colours  = material.heat(100))
+```
+
+
+
+```{r eval=FALSE, include=FALSE}
+#
+pdf("./figures.integration/PBSvsINF.replot/Markers/CellTalkDB.list/PBSvsINF.CellTalkDB.for_ligand.pct0.15_padj0.001.mod.a.pdf",
+    width = 17.8, height = 5.4)
+DotPlot(test1.seur, features = markers.new_ligand.pct_0.15.padj_0.001$gene, group.by = "intAnno1",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 10.15))+ scale_y_discrete(limits=rev) + labs(title="ligand.pct_0.15.padj_0.001") +
+  scale_color_gradientn(colours  = material.heat(100))
+dev.off()
+
+
+#
+pdf("./figures.integration/PBSvsINF.replot/Markers/CellTalkDB.list/PBSvsINF.CellTalkDB.for_ligand.pct0.15_padj0.001.mod.b.pdf",
+    width = 6.8, height = 16.5)
+DotPlot(test1.seur, features = markers.new_ligand.pct_0.15.padj_0.001$gene, group.by = "intAnno1",
+        cols = c("midnightblue","darkorange1")) +
+  coord_flip() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.4,size = 9.15))+
+  #scale_y_discrete(limits=rev) + 
+  labs(title="ligand.pct_0.15.padj_0.001") +
+  scale_color_gradientn(colours  = material.heat(100))
+dev.off()
+
+
+#
+pdf("./figures.integration/PBSvsINF.replot/Markers/CellTalkDB.list/PBSvsINF.CellTalkDB.for_receptor.pct0.15_padj0.001.mod.a.pdf",
+    width = 24.5, height = 5.6)
+DotPlot(test1.seur, features = markers.new_receptor.pct_0.15.padj_0.001$gene, group.by = "intAnno1",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 10))+ scale_y_discrete(limits=rev) + labs(title="receptor.pct_0.15.padj_0.001") +
+  scale_color_gradientn(colours  = material.heat(100))
+dev.off()
+
+#
+pdf("./figures.integration/PBSvsINF.replot/Markers/CellTalkDB.list/PBSvsINF.CellTalkDB.for_receptor.pct0.15_padj0.001.mod.b.pdf",
+    width = 6.9, height = 22.5)
+DotPlot(test1.seur, features = markers.new_receptor.pct_0.15.padj_0.001$gene, group.by = "intAnno1",
+        cols = c("midnightblue","darkorange1")) +
+    coord_flip() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.4,size = 9.15))+
+  #scale_y_discrete(limits=rev) + 
+  labs(title="receptor.pct_0.15.padj_0.001") +
+  scale_color_gradientn(colours  = material.heat(100))
+dev.off()
+```
+
+
+#### NatNeur2021          
+
+```{r fig.height=4.5, fig.width=16.6}
+DotPlot(ref.seur, features = markers.new_ligand.pct_0.15.padj_0.001$gene, group.by = "Anno2",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 10.15))+ scale_y_discrete(limits=rev) + labs(title="ligand.pct_0.15.padj_0.001") +
+  scale_color_gradientn(colours  = material.heat(100))
+```
+
+```{r fig.height=4.5, fig.width=23.5}
+DotPlot(ref.seur, features = markers.new_receptor.pct_0.15.padj_0.001$gene, group.by = "Anno2",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 10))+ scale_y_discrete(limits=rev) + labs(title="receptor.pct_0.15.padj_0.001") +
+  scale_color_gradientn(colours  = material.heat(100))
+```
+
+```{r eval=FALSE, include=FALSE}
+#
+pdf("./figures.integration/check.NatNeur2021/NatNeur2021.CellTalkDB.for_ligand.pct0.15_padj0.001.mod.a.pdf",
+    width = 17.8, height = 5.5)
+DotPlot(ref.seur, features = markers.new_ligand.pct_0.15.padj_0.001$gene, group.by = "Anno2",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 10.15))+ scale_y_discrete(limits=rev) + labs(title="ligand.pct_0.15.padj_0.001") +
+  scale_color_gradientn(colours  = material.heat(100))
+dev.off()
+
+
+#
+pdf("./figures.integration/check.NatNeur2021/NatNeur2021.CellTalkDB.for_ligand.pct0.15_padj0.001.mod.b.pdf",
+    width = 6, height = 16.5)
+DotPlot(ref.seur, features = markers.new_ligand.pct_0.15.padj_0.001$gene, group.by = "Anno2",
+        cols = c("midnightblue","darkorange1")) +
+  coord_flip() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.4,size = 9.15))+
+  #scale_y_discrete(limits=rev) + 
+  labs(title="ligand.pct_0.15.padj_0.001") +
+  scale_color_gradientn(colours  = material.heat(100))
+dev.off()
+
+
+#
+pdf("./figures.integration/check.NatNeur2021/NatNeur2021CellTalkDB.for_receptor.pct0.15_padj0.001.mod.a.pdf",
+    width = 24.5, height = 5.5)
+DotPlot(ref.seur, features = markers.new_receptor.pct_0.15.padj_0.001$gene, group.by = "Anno2",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 10))+ scale_y_discrete(limits=rev) + labs(title="receptor.pct_0.15.padj_0.001") +
+  scale_color_gradientn(colours  = material.heat(100))
+dev.off()
+
+#
+pdf("./figures.integration/check.NatNeur2021/NatNeur2021CellTalkDB.for_receptor.pct0.15_padj0.001.mod.b.pdf",
+    width = 6, height = 22.5)
+DotPlot(ref.seur, features = markers.new_receptor.pct_0.15.padj_0.001$gene, group.by = "Anno2",
+        cols = c("midnightblue","darkorange1")) +
+    coord_flip() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.4,size = 9.15))+
+  #scale_y_discrete(limits=rev) + 
+  labs(title="receptor.pct_0.15.padj_0.001") +
+  scale_color_gradientn(colours  = material.heat(100))
+dev.off()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

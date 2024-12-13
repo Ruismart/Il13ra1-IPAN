@@ -1,0 +1,800 @@
+---
+output: 
+  html_document: 
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+---
+
+
+# P21 integration      
+
+
+Integration for GSE149524 P21 pre-analyzed obj rep1 and rep2                  
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+source("/Shared_win/projects/RNA_normal/analysis.10x.r")
+```
+
+
+## load processed obj      
+
+
+```{r}
+merged.list <- list(rep1=readRDS("./GSE149524.P21_rep1.initial.rds"),
+                    rep2=readRDS("./GSE149524.P21_rep2.initial.rds"))
+merged.list
+```
+
+```{r}
+color.pre <- c("#8AB6CE","#678BB1","#3975C1","#4CC1BD",
+               "#C03778","#97BA59","#DFAB16","#BF7E6B",
+               "#D46B35","#BDAE8D","#BD66C4","#2BA956",
+               "#FF8080","#FF8080","#FF8080","#FF0000")
+```
+
+
+```{r echo=FALSE, fig.height=4.5, fig.width=10.8}
+DimPlot(merged.list$rep1, reduction = "umap",  label = T, group.by = "preAnno", repel = T, label.size = 3.6, cols = color.pre, pt.size = 1) +
+  DimPlot(merged.list$rep1, reduction = "umap", label = T, group.by = "seurat_clusters")
+```
+
+
+```{r echo=FALSE, fig.height=4.5, fig.width=10.8}
+DimPlot(merged.list$rep2, reduction = "umap",  label = T, group.by = "preAnno", repel = T, label.size = 3.6, cols = color.pre, pt.size = 1) +
+  DimPlot(merged.list$rep2, reduction = "umap", label = T, group.by = "seurat_clusters")
+```
+
+
+```{r eval=FALSE, include=FALSE, paged.print=FALSE}
+pdf("../analysis_plus.newRef/figure.ref/ref.GSE149524.P21_rep1.umap.pdf",
+    width = 10.8, height = 4.5)
+DimPlot(merged.list$rep1, reduction = "umap",  label = T, group.by = "preAnno", repel = T, label.size = 3.6, cols = color.pre) +
+  DimPlot(merged.list$rep1, reduction = "umap", label = T, group.by = "seurat_clusters")
+dev.off()
+
+pdf("../analysis_plus.newRef/figure.ref/ref.GSE149524.P21_rep2.umap.pdf",
+    width = 10.8, height = 4.5)
+DimPlot(merged.list$rep2, reduction = "umap",  label = T, group.by = "preAnno", repel = T, label.size = 3.6, cols = color.pre) +
+  DimPlot(merged.list$rep2, reduction = "umap", label = T, group.by = "seurat_clusters")
+dev.off()
+
+```
+
+
+
+### filtering       
+
+rep1 remove Glia clusters and C15                        
+rep2 remove Glia clusters and C18            
+                     
+no more filtering for other cutoffs (like DoubletFinder0.05/0.1)                 
+
+
+```{r}
+levels(merged.list$rep1$seurat_clusters)
+levels(merged.list$rep2$seurat_clusters)
+```
+
+
+```{r}
+merged.list$rep1 <- subset(merged.list$rep1, 
+                           subset = seurat_clusters %in% setdiff(levels(merged.list$rep1$seurat_clusters),
+                                                                 c(16,4,11,20,15)))
+
+merged.list$rep2 <- subset(merged.list$rep2, 
+                           subset = seurat_clusters %in% setdiff(levels(merged.list$rep2$seurat_clusters),
+                                                                 c(16,3,14,20,18)))
+```
+
+
+```{r}
+merged.list
+```
+
+
+```{r echo=FALSE, fig.height=9, fig.width=10.8}
+
+cowplot::plot_grid(
+  
+DimPlot(merged.list$rep1, reduction = "umap",  label = T, group.by = "preAnno", repel = T, label.size = 3.6, cols = color.pre, pt.size = 1) +
+  (DimPlot(merged.list$rep1, reduction = "umap", label = T, group.by = "seurat_clusters") + labs(title = "GSE149521.P21.Rep1")),
+
+DimPlot(merged.list$rep2, reduction = "umap",  label = T, group.by = "preAnno", repel = T, label.size = 3.6, cols = color.pre, pt.size = 1) +
+  (DimPlot(merged.list$rep2, reduction = "umap", label = T, group.by = "seurat_clusters") + labs(title = "GSE149521.P21.Rep2")),
+ncol = 1)
+```
+
+
+
+
+
+## integration              
+
+
+```{r}
+merged.list <- lapply(merged.list, function(x){
+  x@meta.data[,grep("snn|clusters|pANN|Doublet",colnames(x@meta.data))] <- NULL
+  x
+})
+
+
+lapply(merged.list, function(x){head(x@meta.data)})
+```
+
+### SCT           
+
+
+```{r}
+SCT.list <- merged.list
+
+SCT.list <- lapply(SCT.list, function(x){
+  Idents(x) <- "orig.ident"
+  x <- SCTransform(x, variable.features.n = 3000, vst.flavor = "v2",
+                   return.only.var.genes = FALSE)
+  x
+})
+```
+
+```{r}
+SCT.list
+```
+
+
+### features          
+
+```{r}
+feature.raw <- SelectIntegrationFeatures(object.list = SCT.list, nfeatures = 3000)
+head(feature.raw,300)
+```
+
+
+```{r}
+DIG <- grep("^Tra|^Trb|^Trg|^Trd|^Tcr|^Igm|^Igh|^Igk|^Igl|Jchain|Mzb1|Vpreb|Lars2|Jun|Fos|Egr1|RP23-|^Hsp|^Rps|^Rpl|Hbb-|Hba-|^Dnaj|^AY|^AC|^AI|^BC|^Gm|^Hist|Rik$|-ps",
+            feature.raw,value = T)
+
+# sex-relaged genes
+SRG <- c("Xist","Tsix","Uty","Ddx3y","Eif2s3y","Kdm5d")
+
+CC_gene <- Hmisc::capitalize(tolower(as.vector(unlist(cc.genes.updated.2019))))
+```
+
+```{r}
+DIG
+```
+
+```{r}
+CC_gene
+```
+
+```{r}
+features.filt <- setdiff(feature.raw, c(DIG,CC_gene,SRG))
+length(features.filt)
+head(features.filt,300)
+```
+
+
+```{r}
+gc()
+```
+
+```{r}
+length(feature.raw)
+length(features.filt)
+```
+
+
+### anchors                    
+            
+            
+```{r}
+all.anchors <- FindIntegrationAnchors(object.list = SCT.list,
+                                      dims = 1:50,
+                                      anchor.features = features.filt)
+```
+
+
+```{r}
+all.anchors
+```
+
+### Integration              
+
+```{r}
+all.anchors <- IntegrateData(anchorset = all.anchors, dims = 1:50)
+```
+
+
+```{r}
+all.anchors
+```
+
+```{r}
+all.anchors@assays$SCT@SCTModel.list
+```
+
+
+```{r}
+gc()
+```
+
+#### clustering               
+
+```{r}
+all.anchors <- ScaleData(object = all.anchors, verbose = TRUE, 
+                         vars.to.regress = c("percent.mt","percent.rb","nCount_RNA"))
+```
+
+
+```{r}
+gc()
+```
+
+
+```{r}
+length(all.anchors@assays$integrated@var.features)
+```
+
+```{r}
+head(all.anchors@meta.data)
+```
+
+
+```{r}
+all.anchors <- RunPCA(all.anchors, do.print = TRUE,
+                      features = all.anchors@assays$integrated@var.features,
+                      seed.use = 133,
+                      npcs = 100,
+                      #ndims.print = 1,
+                      verbose = T)
+```
+
+
+```{r pcsheat,fig.width=12,fig.height=18}
+DimHeatmap(all.anchors, dims = 1:12, cells = 1500, balanced = TRUE,ncol = 4)
+```
+
+
+```{r}
+ElbowPlot(all.anchors, ndims = 100)
+```
+
+```{r}
+ElbowPlot(all.anchors, ndims = 50)
+```
+
+
+## Integrated                
+
+```{r}
+all.anchors
+```
+
+
+```{r}
+#DefaultAssay(all.anchors) <- "integrated"
+PCsct <- 1:35
+```
+
+
+```{r}
+all.anchors <- FindNeighbors(all.anchors, k.param = 20, dims = PCsct, compute.SNN = T, reduction = 'pca', verbose = T)
+all.anchors <- FindClusters(all.anchors, dims.use = PCsct, algorithm = 1, save.SNN =T, resolution =1.5, reduction = 'pca', verbose = T)
+```
+
+```{r}
+all.anchors <- RunTSNE(object = all.anchors, assay = "integrated", seed.use = 127, dims = PCsct, complexity=50)
+all.anchors <- RunUMAP(object = all.anchors, assay = "integrated", seed.use = 112, dims = PCsct, n.neighbors = 20, min.dist = 0.25)
+```
+
+
+```{r fig.width=11.5, fig.height=4.5}
+DimPlot(all.anchors, label = T, pt.size = 0.05, repel = F, reduction = 'tsne', group.by = "seurat_clusters") +
+DimPlot(all.anchors, label = T, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "seurat_clusters")
+```
+
+```{r}
+all.anchors$preAnno <- factor(as.character(all.anchors$preAnno),
+                              levels = paste0("ENC",1:12))
+```
+
+
+```{r}
+color.pre <- c("#8AB6CE","#678BB1","#3975C1","#4CC1BD",
+               "#C03778","#97BA59","#DFAB16","#BF7E6B",
+               "#D46B35","#BDAE8D","#BD66C4","#2BA956")
+```
+
+```{r fig.width=11.5, fig.height=4.5}
+DimPlot(all.anchors, label = T, pt.size = 1, repel = F, reduction = 'tsne', group.by = "preAnno", cols = color.pre) +
+DimPlot(all.anchors, label = T, pt.size = 1, repel = T, reduction = 'umap', group.by = "preAnno", label.size = 3.6, cols = color.pre)
+```
+
+further remove low-quality/mix-like C11/14/20                     
+
+```{r}
+all.anchors <- subset(all.anchors, subset = seurat_clusters %in% setdiff(levels(all.anchors$seurat_clusters),
+                                                                         c(11,14,20)))
+all.anchors
+```
+
+```{r fig.width=10.5, fig.height=4.5}
+DimPlot(all.anchors, label = T, pt.size = 0.05, repel = F, reduction = 'tsne', group.by = "seurat_clusters") +
+DimPlot(all.anchors, label = T, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "seurat_clusters")
+```
+
+```{r fig.width=11.5, fig.height=4.5}
+DimPlot(all.anchors, label = T, pt.size = 1, repel = F, reduction = 'tsne', group.by = "preAnno", cols = color.pre) +
+DimPlot(all.anchors, label = T, pt.size = 1, repel = T, reduction = 'umap', group.by = "preAnno", label.size = 3.6, cols = color.pre)
+```
+
+```{r fig.width=11.5, fig.height=4.5}
+DimPlot(all.anchors, label = F, pt.size = 0.4, repel = F, reduction = 'umap', group.by = "orig.ident", cols = ggsci::pal_startrek()(2)) +
+DimPlot(all.anchors, label = T, pt.size = 1, repel = T, reduction = 'umap', group.by = "preAnno", label.size = 3.6, cols = color.pre)
+```
+
+### annotation           
+
+
+```{r}
+all.anchors$sort_clusters <- factor(as.character(all.anchors$seurat_clusters),
+                                    levels = c(1,4, # ENC1
+                                               0,9,5,3,   #  ENC2,3
+                                               17,    # ENC4
+                                               18,    # ENC5
+                                               15,    # ENC6
+                                               8,     # ENC7
+                                               6,2,7,12,    # ENC8,9
+                                               10,    # ENC10
+                                               16,     # ENC11
+                                               19,13   # ENC12
+                                               ))
+```
+
+
+
+
+```{r}
+all.anchors$Anno1 <- as.character(all.anchors$seurat_clusters)
+
+all.anchors$Anno1[all.anchors$Anno1 %in% c(1,4)] <- "ENC1"
+all.anchors$Anno1[all.anchors$Anno1 %in% c(0,9)] <- "ENC2"
+all.anchors$Anno1[all.anchors$Anno1 %in% c(5,3)] <- "ENC3"
+all.anchors$Anno1[all.anchors$Anno1 %in% c(17)] <- "ENC4"
+all.anchors$Anno1[all.anchors$Anno1 %in% c(18)] <- "ENC5"
+all.anchors$Anno1[all.anchors$Anno1 %in% c(15)] <- "ENC6"
+all.anchors$Anno1[all.anchors$Anno1 %in% c(8)] <- "ENC7"
+all.anchors$Anno1[all.anchors$Anno1 %in% c(6,2)] <- "ENC8"
+all.anchors$Anno1[all.anchors$Anno1 %in% c(7,12)] <- "ENC9"
+all.anchors$Anno1[all.anchors$Anno1 %in% c(10)] <- "ENC10"
+all.anchors$Anno1[all.anchors$Anno1 %in% c(16)] <- "ENC11"
+all.anchors$Anno1[all.anchors$Anno1 %in% c(19,13)] <- "ENC12"
+
+all.anchors$Anno1 <- factor(all.anchors$Anno1,
+                            levels = paste0("ENC",1:12))
+```
+
+
+```{r}
+all.anchors$Anno2 <- as.character(all.anchors$seurat_clusters)
+
+all.anchors$Anno2[all.anchors$Anno2 %in% c(1,4)] <- "EMN1"
+all.anchors$Anno2[all.anchors$Anno2 %in% c(0,9)] <- "EMN2"
+all.anchors$Anno2[all.anchors$Anno2 %in% c(5)] <- "EMN3"
+all.anchors$Anno2[all.anchors$Anno2 %in% c(3)] <- "EMN4"
+all.anchors$Anno2[all.anchors$Anno2 %in% c(17)] <- "EMN5"
+
+all.anchors$Anno2[all.anchors$Anno2 %in% c(6,2)] <- "IMN1"
+all.anchors$Anno2[all.anchors$Anno2 %in% c(7,12)] <- "IMN2"
+
+all.anchors$Anno2[all.anchors$Anno2 %in% c(10)] <- "IN1"
+all.anchors$Anno2[all.anchors$Anno2 %in% c(16)] <- "IN2"
+all.anchors$Anno2[all.anchors$Anno2 %in% c(18)] <- "IN3"
+
+all.anchors$Anno2[all.anchors$Anno2 %in% c(15)] <- "IPAN1"
+all.anchors$Anno2[all.anchors$Anno2 %in% c(8)] <- "IPAN2"
+all.anchors$Anno2[all.anchors$Anno2 %in% c(19)] <- "IPAN3"
+all.anchors$Anno2[all.anchors$Anno2 %in% c(13)] <- "IPAN4"
+
+all.anchors$Anno2 <- factor(all.anchors$Anno2,
+                            levels = c(paste0("EMN",1:5),
+                                       paste0("IMN",1:2),
+                                       paste0("IN",1:3),
+                                       paste0("IPAN",1:4)))
+```
+
+
+```{r fig.width=11.5, fig.height=4.5}
+DimPlot(all.anchors, label = F, pt.size = 0.4, repel = F, reduction = 'umap', group.by = "orig.ident", cols = ggsci::pal_startrek()(2)) +
+DimPlot(all.anchors, label = T, pt.size = 1, repel = T, reduction = 'umap', group.by = "Anno1", label.size = 3.6, cols = color.pre)
+```
+
+```{r fig.width=10.5, fig.height=4.5}
+DimPlot(all.anchors, label = T, pt.size = 0.4, repel = F, reduction = 'umap', group.by = "seurat_clusters") +
+DimPlot(all.anchors, label = T, pt.size = 1, repel = T, reduction = 'umap', group.by = "Anno1", label.size = 3.6, cols = color.pre)
+```
+
+```{r eval=FALSE, include=FALSE}
+pdf("../analysis_plus.newRef/figure.ref/ref.GSE149524.P21_integration.umap_Anno1.pdf",
+    width = 10.5, height = 4.5)
+
+DimPlot(all.anchors, label = T, pt.size = 0.4, repel = F, reduction = 'umap', group.by = "seurat_clusters") +
+DimPlot(all.anchors, label = T, pt.size = 0.4, repel = T, reduction = 'umap', group.by = "Anno1", label.size = 3.6, cols = color.pre)
+dev.off()
+```
+
+
+```{r fig.width=10, fig.height=4.5}
+DimPlot(all.anchors, label = T, pt.size = 0.4, repel = F, reduction = 'umap', group.by = "seurat_clusters") + NoLegend() +
+DimPlot(all.anchors, label = T, pt.size = 1, repel = T, reduction = 'umap', group.by = "Anno2", label.size = 3.6)
+```
+
+```{r eval=FALSE, include=FALSE}
+pdf("../analysis_plus.newRef/figure.ref/ref.GSE149524.P21_integration.umap_Anno2.pdf",
+    width = 10, height = 4.5)
+DimPlot(all.anchors, label = T, pt.size = 0.4, repel = F, reduction = 'umap', group.by = "seurat_clusters") + NoLegend() +
+DimPlot(all.anchors, label = T, pt.size = 1, repel = T, reduction = 'umap', group.by = "Anno2", label.size = 3.6)
+dev.off()
+```
+
+```{r echo=FALSE, fig.height=4.4, fig.width=9}
+cowplot::plot_grid(
+DimPlot(all.anchors, reduction = "umap",  label = T, group.by = "Anno1", repel = T, label.size = 3.6, cols = color.pre, pt.size = 0.4) + NoLegend(),
+  DimPlot(all.anchors, reduction = "umap", label = T, group.by = "Anno2", repel = T, label.size = 3.6, pt.size = 0.4) + NoLegend(),
+ncol = 2)
+```
+
+```{r eval=FALSE, include=FALSE}
+pdf("../analysis_plus.newRef/figure.ref/ref.GSE149524.P21_integration.umap_Anno.pdf",
+    width = 9, height = 4.4)
+cowplot::plot_grid(
+DimPlot(all.anchors, reduction = "umap",  label = T, group.by = "Anno1", repel = T, label.size = 3.6, cols = color.pre, pt.size = 0.4) + NoLegend(),
+  DimPlot(all.anchors, reduction = "umap", label = T, group.by = "Anno2", repel = T, label.size = 3.6, pt.size = 0.4) + NoLegend(),
+ncol = 2)
+dev.off()
+```
+
+```{r echo=FALSE, fig.height=8.8, fig.width=4.5}
+cowplot::plot_grid(
+DimPlot(all.anchors, reduction = "umap",  label = T, group.by = "Anno1", repel = T, label.size = 3.6, cols = color.pre, pt.size = 1) + NoLegend(),
+  DimPlot(all.anchors, reduction = "umap", label = T, group.by = "Anno2", repel = T, label.size = 3.6) + NoLegend(),
+ncol = 1)
+```
+
+
+
+### markers          
+
+
+#### figure2         
+            
+```{r}
+check.fig2 <- list(Neurotransmission=c("Oprk1","Adrb2","Cckar","Htr2b",
+                                       "Gucy2g","Galr1","Vipr2","Grin3a",
+                                       "Adora1","Crhr2","Chrna2","Tacr3",
+                                       "Gabrg3","Nmur2","Grm5","P2ry6",
+                                       "Galr2","Sstr2","Gabre","Npy5r",
+                                       "Npy1r","Sstr5"#,"Drd2","Drd3"
+                                       ),
+                   Othersignaling=c("Cxcl12","Fgfr2","Ntrk2","Egfr",
+                                    "Nmbr","Ptgfr","Pgf","Edn1",
+                                    "Kit","Prokr2","Islr2","Gfral",
+                                    "Mc4r","Bdnf","Kitl","Gfra1",
+                                    "Tgfbr2","Ednra","Prokr1","Bmpr1b"),
+                   Ionchannels=c("Kcns3","Ano10","Kcnip4","Kcnip1",
+                                 "Kcnn2","Kcnn3","Ano2","Ano8",
+                                 "Kcna2","Scn1a","Kcna5","Kcnab1",
+                                 "Cacna1i","Kcnd2","Kcnv1",
+                                 "Cacng5","Piezo2","Piezo1"),   # Peizo1 manually added 
+                   Adhesionmolecules=c("Ly6c1","Itgb5","Sema3e","Ntn1",
+                                       "Slitrk4","Itga6","Cdh8","Ptpru",
+                                       "Itgb6","Unc5b","Avil","Sema5a",
+                                       "Epha8","Cdh7","Itga1","Ephb6",
+                                       "Flrt2","Nxph2","Ntng1"),
+                   Transcriptionfactors=c("Satb1","Ebf3","Bnc2","Nfatc1",
+                                          "Zfp503","Satb2","Cux2","Dlx3",
+                                          "Atoh8","Zfp804a","Ebf2","Pbx3",
+                                          "Meis1","Etv1","St18","Ebf1",
+                                          "Neurod6","Trps1","Zfp800","Onecut2",
+                                          "Phox2a","Phox2b"),
+                   AnnexinsCopines=c("Anxa4","Anxa3","Anxa11","Anxa2",
+                                     "Anxa5","Anxa6","Anxa7","Cpne4",
+                                     "Cpne5","Cpne7","Cpne2","Cpne3",
+                                     "Cpne8"))
+names.fig2 <- names(check.fig2)
+```
+
+
+```{r}
+check.fig2
+```
+
+
+```{r}
+lapply(check.fig2, length)
+```
+
+
+```{r}
+names.fig2
+```
+
+```{r}
+DefaultAssay(all.anchors) <- "SCT"
+```
+
+
+```{r  fig.height=12, fig.width=15}
+cowplot::plot_grid(
+DotPlot(all.anchors, features = check.fig2$Neurotransmission, group.by = "sort_clusters",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 11.5))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[1]),
+
+DotPlot(all.anchors, features = check.fig2$Othersignaling, group.by = "sort_clusters",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+#scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[2]),
+
+DotPlot(all.anchors, features = check.fig2$Ionchannels, group.by = "sort_clusters",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[3]),
+
+DotPlot(all.anchors, features = check.fig2$Adhesionmolecules, group.by = "sort_clusters",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[4]),
+
+DotPlot(all.anchors, features = check.fig2$Transcriptionfactors, group.by = "sort_clusters",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[5]),
+
+DotPlot(all.anchors, features = check.fig2$AnnexinsCopines, group.by = "sort_clusters",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[6]),
+ncol = 2)
+```
+
+
+```{r  fig.height=12, fig.width=15}
+cowplot::plot_grid(
+DotPlot(all.anchors, features = check.fig2$Neurotransmission, group.by = "preAnno",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 11.5))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[1]),
+
+DotPlot(all.anchors, features = check.fig2$Othersignaling, group.by = "preAnno",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+#scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[2]),
+
+DotPlot(all.anchors, features = check.fig2$Ionchannels, group.by = "preAnno",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[3]),
+
+DotPlot(all.anchors, features = check.fig2$Adhesionmolecules, group.by = "preAnno",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[4]),
+
+DotPlot(all.anchors, features = check.fig2$Transcriptionfactors, group.by = "preAnno",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[5]),
+
+DotPlot(all.anchors, features = check.fig2$AnnexinsCopines, group.by = "preAnno",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[6]),
+ncol = 2)
+```
+
+
+```{r  fig.height=12, fig.width=15}
+cowplot::plot_grid(
+DotPlot(all.anchors, features = check.fig2$Neurotransmission, group.by = "Anno1",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 11.5))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[1]),
+
+DotPlot(all.anchors, features = check.fig2$Othersignaling, group.by = "Anno1",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+#scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[2]),
+
+DotPlot(all.anchors, features = check.fig2$Ionchannels, group.by = "Anno1",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[3]),
+
+DotPlot(all.anchors, features = check.fig2$Adhesionmolecules, group.by = "Anno1",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[4]),
+
+DotPlot(all.anchors, features = check.fig2$Transcriptionfactors, group.by = "Anno1",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[5]),
+
+DotPlot(all.anchors, features = check.fig2$AnnexinsCopines, group.by = "Anno1",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[6]),
+ncol = 2)
+```
+
+
+```{r  fig.height=12, fig.width=15}
+cowplot::plot_grid(
+DotPlot(all.anchors, features = check.fig2$Neurotransmission, group.by = "Anno2",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 11.5))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[1]),
+
+DotPlot(all.anchors, features = check.fig2$Othersignaling, group.by = "Anno2",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+#scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[2]),
+
+DotPlot(all.anchors, features = check.fig2$Ionchannels, group.by = "Anno2",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[3]),
+
+DotPlot(all.anchors, features = check.fig2$Adhesionmolecules, group.by = "Anno2",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[4]),
+
+DotPlot(all.anchors, features = check.fig2$Transcriptionfactors, group.by = "Anno2",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[5]),
+
+DotPlot(all.anchors, features = check.fig2$AnnexinsCopines, group.by = "Anno2",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[6]),
+ncol = 2)
+```
+
+
+```{r eval=FALSE, include=FALSE}
+#
+pdf("../analysis_plus.newRef/figure.ref/ref.GSE149524.P21_integration.fig2_Anno1.pdf",
+    width = 15, height = 12)
+cowplot::plot_grid(
+DotPlot(all.anchors, features = check.fig2$Neurotransmission, group.by = "Anno1",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 11.5))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[1]),
+
+DotPlot(all.anchors, features = check.fig2$Othersignaling, group.by = "Anno1",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+#scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[2]),
+
+DotPlot(all.anchors, features = check.fig2$Ionchannels, group.by = "Anno1",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[3]),
+
+DotPlot(all.anchors, features = check.fig2$Adhesionmolecules, group.by = "Anno1",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[4]),
+
+DotPlot(all.anchors, features = check.fig2$Transcriptionfactors, group.by = "Anno1",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[5]),
+
+DotPlot(all.anchors, features = check.fig2$AnnexinsCopines, group.by = "Anno1",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[6]),
+ncol = 2)
+dev.off()
+
+#
+pdf("../analysis_plus.newRef/figure.ref/ref.GSE149524.P21_integration.fig2_Anno2.pdf",
+    width = 15, height = 12)
+cowplot::plot_grid(
+DotPlot(all.anchors, features = check.fig2$Neurotransmission, group.by = "Anno2",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 11.5))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[1]),
+
+DotPlot(all.anchors, features = check.fig2$Othersignaling, group.by = "Anno2",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+#scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[2]),
+
+DotPlot(all.anchors, features = check.fig2$Ionchannels, group.by = "Anno2",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[3]),
+
+DotPlot(all.anchors, features = check.fig2$Adhesionmolecules, group.by = "Anno2",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[4]),
+
+DotPlot(all.anchors, features = check.fig2$Transcriptionfactors, group.by = "Anno2",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[5]),
+
+DotPlot(all.anchors, features = check.fig2$AnnexinsCopines, group.by = "Anno2",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[6]),
+ncol = 2)
+dev.off()
+
+```
+
+
+
+
+```{r}
+#saveRDS(all.anchors, "./GSE149524.P21.integration_Anno.s.rds")
+#all.anchors <- readRDS("./GSE149524.P21.integration_Anno.S.rds")
+```
+
+
+
+```{r  fig.height=12, fig.width=15}
+cowplot::plot_grid(
+DotPlot(all.anchors, features = c(check.fig2$Neurotransmission,"Gal"), group.by = "Anno2",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 11.5))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[1]),
+
+DotPlot(all.anchors, features = check.fig2$Othersignaling, group.by = "Anno2",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+#scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[2]),
+
+DotPlot(all.anchors, features = check.fig2$Ionchannels, group.by = "Anno2",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[3]),
+
+DotPlot(all.anchors, features = check.fig2$Adhesionmolecules, group.by = "Anno2",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[4]),
+
+DotPlot(all.anchors, features = check.fig2$Transcriptionfactors, group.by = "Anno2",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[5]),
+
+DotPlot(all.anchors, features = check.fig2$AnnexinsCopines, group.by = "Anno2",
+        cols = c("lightgrey","blue")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[6]),
+ncol = 2)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

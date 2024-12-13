@@ -1,0 +1,1175 @@
+---
+output: 
+  html_document: 
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+---      
+# public ENS scRNAseq data analysis        
+      
+this Rmarkdown is the final version for RAISIN Smart-Seq2 data analysis   
+
+
+first load all needed packages/functions which are integrated in script 'analysis.r'  
+most of the script are from example code https://github.com/cssmillie/ulcerative_colitis, 
+and modified to fit local environment and current datasets   
+
+```{r message=FALSE, warning=FALSE}
+source("analysis.r")
+```
+
+
+## metadata processing   
+  
+
+```{r}
+allmeta <- read.table(paste0(raw_dir,"all.meta.txt"), header = T, sep = "\t")
+allmeta <- allmeta[2:nrow(allmeta),]
+dim(allmeta)
+```
+
+```{r}
+cat(paste0("cells with nGene > 1000: \n",sum(allmeta$nGene > 1000),
+           "\n\ncells with nGene >= 1000: \n",sum(allmeta$nGene >= 1000)))
+```
+  
+  
+this allmeta has information for all filtered nuclei, total 586,460 cells (nGene >= 1000)   
+sub-slusters in paper are marked under column 'Annotation'   
+
+```{r}
+head(allmeta)
+```
+  
+column names of allmeta  
+```{r}
+colnames(allmeta)
+```
+  
+using 'Dataset' could get a stat for each dataset   
+```{r}
+data.frame(table(allmeta$Dataset))
+```
+  
+### ss2 subset    
+    
+how about Smart-Seq2 datasets  
+```{r}
+# for this small amount of lines, could directly use
+# data.frame(table(allmeta$Dataset))[c(6,8),]
+data.frame(table(allmeta$Dataset))[grep("Smart-Seq2",as.character(data.frame(table(allmeta$Dataset))$Var1)), ]
+```
+  
+these '3039' glia and '2657' neurons of Mouse colon were first labeled in mice, then FACS sorted into plates,   
+so no 'all cells' as other droplet-datasets  
+
+  
+subset allmeta to _ss2  
+
+```{r}
+allmeta_ss2 <- allmeta[allmeta$Dataset %in% c("Mouse colon enteric glia (Smart-Seq2)", "Mouse colon enteric neurons (Smart-Seq2)"),]
+
+# continue to partition
+allmeta_ss2_neur <- allmeta_ss2[allmeta_ss2$Dataset %in% c("Mouse colon enteric neurons (Smart-Seq2)"),]
+allmeta_ss2_glia <- allmeta_ss2[allmeta_ss2$Dataset %in% c("Mouse colon enteric glia (Smart-Seq2)"),]
+
+# check 
+cat("dimention of allmeta_ss2: \n",dim(allmeta_ss2),
+    "\n\ndimention of allmeta_ss2_neur: \n",dim(allmeta_ss2_neur),
+    "\n\ndimention of allmeta_ss2_glia: \n",dim(allmeta_ss2_glia))
+```
+  
+```{r}
+head(allmeta_ss2)
+#tail(allmeta_ss2)
+#head(allmeta_ss2_neur)
+#head(allmeta_ss2_glia)
+```
+  
+
+#### conditions recover     
+
+allmeta_ss2 is incomplete for all conditions, need to recover them from table mmc2.xlsx 'Mous Colon (plate)'    
+```{r}
+mmc2_ss2 <- read.table("../test_4_for_RAISIN/mmc2_1.csv",header=TRUE,sep = ",")
+mmc2_ss2[1:10,]
+```
+  
+depending on allmeta_ss2:Unique_ID = mmc_ss2:Sample_ID
+
+```{r}
+# allmeta_ss2 just keep these columns, conditions all use mmc2's    
+allmeta_ss2 <- allmeta_ss2[,c("NAME","Annotation","Dataset","Mouse_ID","Unique_ID","nGene","nUMI")]
+
+# for same Sample_ID, copy mmc2 columns 3-12, i.e. Age-Time_Processed
+for(i in 1:nrow(mmc2_ss2)){
+  allmeta_ss2[allmeta_ss2$Unique_ID == mmc2_ss2$Sample_ID[i], colnames(mmc2_ss2)[3:12]] <- mmc2_ss2[i,3:12]
+}
+
+rownames(allmeta_ss2) <- allmeta_ss2$NAME
+
+# repartition
+allmeta_ss2_neur <- allmeta_ss2[allmeta_ss2$Dataset %in% c("Mouse colon enteric neurons (Smart-Seq2)"),]
+allmeta_ss2_glia <- allmeta_ss2[allmeta_ss2$Dataset %in% c("Mouse colon enteric glia (Smart-Seq2)"),]
+
+allmeta_ss2[1001:1005,]
+```
+  
+```{r}
+allmeta_ss2_neur[501:505,]
+```
+  
+
+```{r}
+allmeta_ss2_glia[1301:1305,]
+```
+   
+    
+## check the expression     
+  
+load DGE matrix  
+
+```{r}
+ss2_neur.counts <- readMM(paste0(raw_dir,"DGE/gene_sorted-ss2.neur.matrix.mtx"))
+rownames(ss2_neur.counts) <- readLines(paste0(raw_dir,"DGE/ss2.neur.genes.tsv"))
+colnames(ss2_neur.counts) <- readLines(paste0(raw_dir,"DGE/ss2.neur.barcodes.tsv"))
+
+ss2_glia.counts <- readMM(paste0(raw_dir,"DGE/gene_sorted-ss2.glia.matrix.mtx"))
+rownames(ss2_glia.counts) <- readLines(paste0(raw_dir,"DGE/ss2.glia.genes.tsv"))
+colnames(ss2_glia.counts) <- readLines(paste0(raw_dir,"DGE/ss2.glia.barcodes.tsv"))
+```
+
+  
+check the expression 
+```{r}
+ss2_neur.counts[6:10,1500:1505]
+```
+
+```{r}
+ss2_glia.counts[6:10,1400:1405]
+```
+  
+to be convenient, trying to unify NAME in allmeta and colnames of .counts, need to remove those 'Atlas_',   
+but get 'length not match' error, then find a few cells with 'Aging_' start instead of 'Atlas_',   
+and those cells are all from so-called 'old mice' with Age 52/104/105 weeks     
+
+check first 6 'Aging_' cells  
+```{r}
+ss2_neur.counts[6:10,grep("Aging_",colnames(ss2_neur.counts))[1:6]]
+```
+
+```{r}
+allmeta_ss2_neur[grep("Aging_",colnames(ss2_neur.counts))[1:6],c("Age","Age_Processed")]
+```
+
+### rename    
+
+remove 'Atlas_' or 'Aging_' in front of colnames of .counts  
+demo  
+```{r}
+colnames(ss2_neur.counts)[1:5];as.character(sapply(colnames(ss2_neur.counts)[1:5],function(x){gsub("Atlas_|Aging_","",x)}))
+```
+for all  
+```{r}
+colnames(ss2_neur.counts) <- as.character(sapply(colnames(ss2_neur.counts),function(x){gsub("Atlas_|Aging_","",x)}))
+colnames(ss2_glia.counts) <- as.character(sapply(colnames(ss2_glia.counts),function(x){gsub("Atlas_|Aging_","",x)}))
+```
+check  
+```{r}
+cat("ss2_neur new cell names in allmeta_neur: \n",sum(colnames(ss2_neur.counts) %in% allmeta_ss2_neur$NAME),
+    "\n\nss2_glia new cell names in allmeta_glia: \n",sum(colnames(ss2_glia.counts) %in% allmeta_ss2_glia$NAME))
+```
+  
+actually they have same orders  
+```{r}
+cat("ss2_neur new cell names = NAME in allmeta_neur: \n",sum(colnames(ss2_neur.counts) == allmeta_ss2_neur$NAME),
+    "\n\nss2_glia new cell names = NAME in allmeta_glia: \n",sum(colnames(ss2_glia.counts) == allmeta_ss2_glia$NAME))
+```
+    
+### TPM or counts ?    
+
+not sure about what's the expression value, TPM or counts? (though named by '.counts' ? the name/process is designed for droplet.)       
+considering it's RSEM's output which could have 'expected counts' with decimals (normal counts is integer), both could be possible,    
+and it should be processed for the little difference about nGene    
+
+nGene calculated from expression matrix is a little different from nGene in allmeta     
+guess some very small values of some genes became 0   
+```{r}
+cat("ss2_neur cells: \n",dim(ss2_neur.counts)[2],
+    "\n\nss2_neur cells with 'nGene >=1000': \n",sum(colSums(ss2_neur.counts>0) >= 1000))
+```
+  
+```{r}
+cat("ss2_glia cells: \n",dim(ss2_glia.counts)[2],
+    "\n\nss2_glia cells with 'nGene >=1000': \n",sum(colSums(ss2_glia.counts>0) >= 1000))
+```
+  
+
+and what's confused next is that there's a 'nUMI' column in allmeta_ss2    
+but as we know Smart-Seq2 technology is not so possible to contain UMI... 
+
+```{r}
+cat("total expression value of some ss2_neur cells: \n\n");colSums(ss2_neur.counts[,1500:1505])
+```
+  
+how about their 'nUMI' in meta data  
+```{r}
+allmeta_ss2_neur[1500:1505,"nUMI",drop=F]
+```
+  
+
+```{r}
+cat("total expression value of some ss2_glia cells: \n\n");colSums(ss2_glia.counts[,1400:1405])
+```
+  
+how about their 'nUMI' in meta data  
+```{r}
+allmeta_ss2_glia[1400:1405,"nUMI",drop=F]
+```
+
+#### CP10K but not TP10K       
+
+could see that so-called 'nUMI' is indeed sum of expression values, but not the same across samples   
+  
+although in paper, ss2 always use TPM or TP10K,    
+here we could just regard the expression value as reads count  
+
+and without additional raw data, impossible to turn it into TPM,  
+so, we could just normalize it to CPM or say CP10k  
+```{r}
+# norm_f <- 1e6 
+# have tried 1e6, it got much flatter and longer groups in tsne image after sub-clustering, no other considerations here  
+norm_f <- 1e4
+ss2_neur.counts <- sweep(norm_f*ss2_neur.counts,2,as.numeric(allmeta_ss2_neur$nUMI), FUN='/')
+ss2_glia.counts <- sweep(norm_f*ss2_glia.counts,2,as.numeric(allmeta_ss2_glia$nUMI), FUN='/')
+
+# _n as log2(CP10K+1) 
+ss2_neur.counts_n <- log2(ss2_neur.counts+1)
+ss2_glia.counts_n <- log2(ss2_glia.counts+1)
+```
+  
+normalize total expression of each cell to 10k  
+
+```{r}
+cat("normalized total expression value of some ss2_neur cells: \n\n");colSums(ss2_neur.counts[,1500:1505])
+```
+  
+```{r}
+cat("normalized total expression value of some ss2_glia cells: \n\n");colSums(ss2_glia.counts[,1400:1405])
+```
+
+## marker genes
+check marker genes of neuron/glia from Lasrado et al. 2017   
+
+Neurons  
+Tubb3, Elavl4, Ret, Phox2b, Chrnb4, Eml5, Smpd3, Tagln3, Snap25, Gpr22, Gdap1l1, Stmn3,  
+Chrna3, Scg3, Syt4, Ncan, Crmp1, Adcyap1r1, Elavl3, Dlg2, Cacna2d(Cacna2d1/2/3/4 which ?)    
+  
+Glia  
+Erbb3, Sox10, Fabp3, Plp1, Gas7, Nid1, Qk, Sparc, Mest, Nfia, Wwtr1, Gpm6b, Rasa3,   
+Flrt1, Itpripl1, Itga4, Lama4, Postn, Ptprz1, Pdpn, Col18a1, Nrcam     
+
+```{r}
+genes_neur <- c("Tubb3", "Elavl4", "Ret", "Phox2b", "Chrnb4", "Eml5", "Smpd3", 
+                "Tagln3", "Snap25", "Gpr22", "Gdap1l1", "Stmn3", "Chrna3", "Scg3", 
+                "Syt4", "Ncan", "Crmp1", "Adcyap1r1", "Elavl3", "Dlg2","Cacna2d1", "Cacna2d2")                
+#               "Syt4", "Ncan", "Crmp1", "Adcyap1r1", "Elavl3", "Dlg2","Cacna2d1", "Cacna2d2", "Cacna2d3", "Cacna2d4")
+
+genes_glia <- c("Erbb3", "Sox10", "Fabp3", "Plp1", "Gas7", "Nid1", "Qk", "Sparc", "Mest", "Nfia", "Wwtr1", 
+                "Gpm6b", "Rasa3", "Flrt1", "Itpripl1", "Itga4", "Lama4", "Postn", "Ptprz1", "Pdpn", "Col18a1", "Nrcam")
+```
+
+```{r ss2_mix_heat1, fig.height = 5.2, fig.width = 7.2}
+pheatmap::pheatmap(cbind(ss2_neur.counts_n[c(genes_neur,genes_glia),],ss2_glia.counts_n[c(genes_neur,genes_glia),]),
+         cluster_rows = F,cluster_cols = F, show_colnames = F, fontsize_row = 7.2,
+         gaps_col = dim(ss2_neur.counts_n)[2], gaps_row = length(genes_neur),
+         main = "Heatmap: log2(CP10K+1) expression of neur/glia marker genes\nleft: ss2_neur, right: ss2_glia;\n up: genes_neur, down: genes_glia")
+```
+
+```{r}
+# convert to signature score
+sig_score_neur <- cbind(ss2_neur.counts_n[c(genes_neur),],ss2_glia.counts_n[c(genes_neur),])
+sig_score_glia <- cbind(ss2_neur.counts_n[c(genes_glia),],ss2_glia.counts_n[c(genes_glia),])
+
+sig_score_neur <- t(scale(t(sig_score_neur), center=FALSE))
+sig_score_glia <- t(scale(t(sig_score_glia), center=FALSE))
+```
+  
+### scaled and mean       
+
+how about scaled value    
+
+```{r ss2_mix_heat2, fig.height = 5.2, fig.width = 7.2}
+pheatmap::pheatmap(rbind(sig_score_neur,sig_score_glia),
+         cluster_rows = F,cluster_cols = F, show_colnames = F, fontsize_row = 7.2,
+         gaps_col = dim(ss2_neur.counts_n)[2], gaps_row = length(genes_neur),
+         main = "Heatmap: scaled log2(CP10K+1) expression of neur/glia marker genes\nleft: ss2_neur, right: ss2_glia;\n up: genes_neur, down: genes_glia")
+```
+  
+```{r}
+# then take mean
+sig_score_neur <- colMeans(sig_score_neur)
+sig_score_glia <- colMeans(sig_score_glia)
+
+pheatmap::pheatmap(rbind(sig_score_neur,sig_score_glia),
+         cluster_rows = F,cluster_cols = F, show_colnames = F, 
+         gaps_col = dim(ss2_neur.counts_n)[2], gaps_row = 1,
+         main = "Heatmap: signature score of neur/glia marker genes\nleft: ss2_neur, right: ss2_glia;\n up: genes_neur, down: genes_glia")  
+```
+  
+
+### outliers    
+
+in general, ss2_neur and _glia are well separated by those marker genes   
+is there any cell different/opposite ?  
+
+  
+```{r}
+cat("ss2_neur cells: \n",dim(ss2_neur.counts)[2],
+"\n\nglia-like cells in ss2_neur: \n",sum(sig_score_neur[1:dim(ss2_neur.counts_n)[2]] < sig_score_glia[1:dim(ss2_neur.counts_n)[2]]),
+"\n\n\nss2_glia cells: \n",dim(ss2_glia.counts)[2],
+"\n\nneur-like cells in ss2_glia: \n",sum(sig_score_neur[(dim(ss2_neur.counts_n)[2]+1):(dim(ss2_neur.counts_n)[2]+dim(ss2_glia.counts_n)[2])] > 
+      sig_score_glia[(dim(ss2_neur.counts_n)[2]+1):(dim(ss2_neur.counts_n)[2]+dim(ss2_glia.counts_n)[2])]))
+```
+  
+what are those cells  
+```{r}
+wrsig_cells <- rbind(sig_score_neur,sig_score_glia)[,c(sig_score_neur[1:dim(ss2_neur.counts_n)[2]] < sig_score_glia[1:dim(ss2_neur.counts_n)[2]],
+                                                      sig_score_neur[(dim(ss2_neur.counts_n)[2]+1):(dim(ss2_neur.counts_n)[2]+dim(ss2_glia.counts_n)[2])] > 
+                                                      sig_score_glia[(dim(ss2_neur.counts_n)[2]+1):(dim(ss2_neur.counts_n)[2]+dim(ss2_glia.counts_n)[2])])]
+cat("neur-like ss2_glia :\n\n");t(wrsig_cells)
+```
+  
+
+```{r ss2_mix_wrsig_heat1, fig.height = 4.3, fig.width = 7.7}
+pheatmap::pheatmap(wrsig_cells,
+         cluster_rows = F,cluster_cols = F, show_colnames = T, 
+         display_numbers = T,
+         main = "Heatmap: signature score of neur-like ss2_glia")  
+```
+  
+```{r ss2_mix_wrsig_heat2, fig.height = 6.3, fig.width = 7.2}
+
+pheatmap::pheatmap(cbind(ss2_neur.counts_n[c(genes_neur,genes_glia),],ss2_glia.counts_n[c(genes_neur,genes_glia),])[,colnames(wrsig_cells)],
+         cluster_rows = F,cluster_cols = F, show_colnames = T, fontsize_row = 6.8,
+         display_numbers = F, gaps_row = length(genes_neur),
+         main = "Heatmap: log2(CP10K+1) of neur/glia marker genes for neur-like ss2_glia\n up: genes_neur, down: genes_glia")  
+```
+  
+
+in 15 neur-like ss2_glia, could see about 6-7 have either very low or very close neur/glia signature score  
+what caused this may be i.Immune labeling, ii.FACS sorting or even iii.the List of marker genes for neur/glia   
+
+here would keep those cells, but make a mark for them        
+```{r}
+colnames(wrsig_cells)
+```
+  
+allmeta add neur/glia sig_score  
+```{r}
+# 
+allmeta_ss2 <- cbind(allmeta_ss2,t(rbind(sig_score_neur,sig_score_glia))[rownames(allmeta_ss2),])
+allmeta_ss2[,c("sig_score_neur","sig_score_glia")] <- round(allmeta_ss2[,c("sig_score_neur","sig_score_glia")],2)
+
+# repartition neur/glia  
+allmeta_ss2_neur <- allmeta_ss2[allmeta_ss2$Dataset %in% c("Mouse colon enteric neurons (Smart-Seq2)"),]
+allmeta_ss2_glia <- allmeta_ss2[allmeta_ss2$Dataset %in% c("Mouse colon enteric glia (Smart-Seq2)"),]
+```
+  
+
+check meta data of neur-like ss2_glia  
+```{r}
+allmeta_ss2[colnames(wrsig_cells),]
+```
+
+
+##### back to datasets    
+## check nGene    
+(detected genes with expression)     
+```{r}
+plot(as.numeric(allmeta_ss2$nGene), type = "p", pch = 1,ylab="nGene")
+abline(h=mean(as.numeric(allmeta_ss2$nGene)),col=6)
+abline(h=mean(as.numeric(allmeta_ss2_neur$nGene)),col="green3")
+abline(h=mean(as.numeric(allmeta_ss2_glia$nGene)),col="blue3")
+title(paste0("mean nGene for ss2 neuron(left,green) and glia(right,blue) "))
+```
+
+neur and glia are naturally partitioned by nGene !  
+but couldn't do it this way with mixed neur+glia.  
+
+```{r warning=FALSE,ss2_mix_nGene1, fig.height = 4.8, fig.width = 7.2}
+h <- hist(as.numeric(allmeta_ss2$nGene), breaks = 20,xlab="", main="", xlim = c(0,12000), ylim = c(0,800), plot = T)
+h1 <- hist(as.numeric(allmeta_ss2_neur$nGene), breaks = 20, xlab="", main="", xlim = c(0,12000), ylim = c(0,800), plot = F)
+h2 <- hist(as.numeric(allmeta_ss2_glia$nGene), breaks = 20, xlab="", main="", xlim = c(0,12000), ylim = c(0,800), plot = F)
+
+d <- density(as.numeric(allmeta_ss2$nGene))
+d1 <- density(as.numeric(allmeta_ss2_neur$nGene))
+d2 <- density(as.numeric(allmeta_ss2_glia$nGene))
+
+#plot(h,add=T, col="grey", plot = F)
+#abline(v=mean(as.numeric(allmeta_ss2$nGene)),col=6)
+title(paste0("nGene distribtusion for ss2 neuron(green) and glia(blue) "))
+#lines(x = d$x, y=d$y* length(as.numeric(allmeta_ss2$nGene))* diff(h$breaks)[1],col="grey",lwd=2, xlim = c(0,12000), ylim = c(0,800))
+lines(x = d1$x, y=d1$y* length(as.numeric(allmeta_ss2_neur$nGene))* diff(h1$breaks)[1],col="green3",lwd=3, xlim = c(0,12000), ylim = c(0,800))
+lines(x = d2$x, y=d2$y* length(as.numeric(allmeta_ss2_glia$nGene))* diff(h2$breaks)[1],col="blue3",lwd=3, xlim = c(0,12000), ylim = c(0,800))
+```
+
+```{r ss2_mix_nGene2, fig.height = 4.8, fig.width = 7.6}
+plot(h,add=F, col="grey", xlab="", main="")
+title(paste0("nGene distribtusion for mixed ss2 neuron+glia "))
+lines(x = d$x, y=d$y* length(as.numeric(allmeta_ss2$nGene))* diff(h$breaks)[1],col=6, lwd=2, xlim = c(0,12000), ylim = c(0,800))
+```
+
+## clustering mixed ss2_neur/glia  
+  
+variable genes are important in batch correction and clustering.   
+in paper, they calculate top 1500 vargenes for each batch, merge and sort by repeating times, take top 1500 again as new vargenes  
+also need to 'remove HLA, immunoglobulin, ribosomal, and mitochondrial genes based on HUGO gene names', with:   
+var_regex = '\^HLA-|\^IG[HJKL]|\^RNA|\^MT|\^RP'  
+
+here comes two questions, the first one could have big effect on sub-clustering.  
+
+to partition ss2_neur and _glia, these could be not so important,   
+because differences between neur and glia are big enough to ignore other effects like batch effect;  
+but to sub-cluster ss2_neur or _glia, batch effect could be larger than putative biological effect,  
+without correction the result might be first clustered by batch effects then by biological ones in each batch.  
+
+a. what does one batch look like ?   
+
+could be 'one Mouse' or 'one Sample' or some real batches to do experiment.    
+guess they might do several mice at once, but we could only try to select first two kinds without additional information.  
+
+using "Sample_ID" as batch info, more batches could have very small number of cells,  
+and would get mixed sub-clustering results comparing to inpaper clusters (allmeta$Annotation), especially ss2_glia.
+
+finally choose the first kind, i.g. one unique 'Mouse_ID' as one batch   
+
+if one batch only has one cell, the combat correction step would use 'mean only' method instead of considering mean and variance of cells  
+if one batch only has very small number of cells, it might also have bad effect on this correction (of which I'm not so sure yet)  
+in the previous Cell paper of Chris's (example code), they merge all small batches with cells less than 50 as one new batch, 
+but after trying a range of 'min_cells' to merge, I just set a relatively small value to merge as few mice as possible .  
+
+b. HUGO name is for Human gene filtering, how about Mouse gene ?
+
+just basically use the related gene names:   
+var_regex='\^Cd|\^Ig|\^Rn|\^mt|\^Rp'
+
+another set of genes may have effect is cell cycle related (not mentioned in paper),    
+have tested that. g2m genes enrich in 3-4 ss2_neur sub-clusters,  
+but without cellcycle genes, only one sub-cluster of PIMNs dispeared,    
+so here also do clustering without consideration of cellcycle's effect.     
+
+  
+    
+### batch info        
+  
+using 'Sample_ID' as batch info   
+```{r}
+cat("profiled ss2_mix in each Mouse-Sample: \n");table(allmeta_ss2$Unique_ID)[paste0("S",1:102)]
+cat("\n quantile statistics: \n");quantile(table(allmeta_ss2$Unique_ID),probs=seq(0,1,0.05))
+```
+  
+actually one sample is more like one batch as samples have more average cell number,  
+another choice might could be to merge neighboring mouse/sample with small number of cells   
+  
+  
+using 'Mouse_ID' as batch info   
+```{r}
+cat("profiled ss2_mix in each Mouse: \n");table(allmeta_ss2$Mouse_ID)[paste0("M",1:29)]
+cat("\n quantile statistics: \n");quantile(table(allmeta_ss2$Mouse_ID),probs=seq(0,1,0.05))
+```
+  
+check min_cells to choose to merge batches    
+
+```{r}
+min_cells <- 20
+cat("ss2_mix mice: ",length(table(allmeta_ss2$Mouse_ID)),
+    "\nss2_mix count: ",sum(table(allmeta_ss2$Mouse_ID)),
+    paste0("\n\nmin_cell < ",min_cells," : ",
+           "\n    mice ",sum(table(allmeta_ss2$Mouse_ID) < min_cells),
+           "\n    count ",sum((table(allmeta_ss2$Mouse_ID))[table(allmeta_ss2$Mouse_ID) < min_cells])))
+```
+  
+  
+### clustering     
+
+modified parameters for Phenograph in paper:  
+PCs 1-16, 'k'NN 250  
+
+```{r}
+#ss2_mix.counts <- RowMergeSparseMatrices(ss2_neur.counts, ss2_glia.counts)
+#
+batch_use.ss2_mix <- as.character(allmeta_ss2$Mouse_ID)
+names(batch_use.ss2_mix) <- rownames(allmeta_ss2)
+batch_use.ss2_mix <- factor(batch_use.ss2_mix)
+
+#ss2_mix.seur <- run_analysis(name="ss2_mix",
+#                             counts=ss2_mix.counts,
+#                             do.batch=TRUE,
+#                             batch.use=batch_use.ss2_mix,
+#                             min_cells=20,
+#                             var_regex='^Cd|^Ig|^Rn|^mt|^Rp',
+#                             num_pcs=30,
+#                             clust_pcs=16,
+#                             k=250)
+
+#
+#ss2_mix.seur@meta.data <- cbind(ss2_mix.seur@meta.data, allmeta_ss2[rownames(ss2_mix.seur@meta.data),])
+
+```
+
+```{r}
+#saveRDS(ss2_mix.seur,"ss2_mix.seur.rds")
+```
+
+because this kind of step takes time and everytime to run would get a little different result,  
+here just use same parameters to run once then annotate the code, next always use the saved seurat object for analysis  
+  
+```{r}
+ss2_mix.seur <- readRDS("ss2_mix.seur.rds")
+```
+
+
+```{r}
+head(ss2_mix.seur@meta.data)
+```
+
+#### PCs  
+```{r}
+ElbowPlot(ss2_mix.seur,ndims = 30) + labs(title = "PCs range 1-30, take 1-16")
+```
+
+PC1&2  
+
+```{r ss2_mix_pca, fig.height = 4.8, fig.width = 6.8}
+DimPlot(ss2_mix.seur, reduction = 'pca', dims = c(1,2)) + labs(title = "ss2_mix PC1+2 ")
+```
+
+```{r ss2_mix_pca_label, fig.height = 4.8, fig.width = 9.4}
+DimPlot(ss2_mix.seur, reduction = 'pca', dims = c(1,2), group.by = 'Dataset') + labs(title = "ss2_mix PC1+2  with ss2_neur/glia labeling ")
+```
+
+
+#### tSNE  
+```{r ss2_mix_tsne, fig.height = 4.8, fig.width = 6.8}
+DimPlot(ss2_mix.seur, reduction = 'tsne') + labs(title = "ss2_mix tSNE")
+```
+
+```{r ss2_mix_tsne_label, fig.height = 4.8, fig.width = 9.2}
+DimPlot(ss2_mix.seur, reduction = 'tsne', group.by = 'Dataset' ) + labs(title = "ss2_mix tSNE  with ss2_neur/glia labeling")
+```
+
+Phenograph clusters   
+
+```{r warning=FALSE,ss2_mix_pheno, fig.height = 4.8, fig.width = 6.2}
+DimPlot(ss2_mix.seur, group.by = 'phenograph.k250', label = T) + labs(title = "ss2_mix Phenograph output")
+```
+
+#### neur/glia scores    
+
+check neur/glia sig_score of each cluster  
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+pheno_clust <- ss2_mix.seur@meta.data[c("phenograph.k250","sig_score_neur","sig_score_glia","Dataset")]
+pheno_clust <- group_by(pheno_clust, phenograph.k250)
+
+pheno_clust <- summarise(pheno_clust,
+                         count = n(),
+                         neur_labeled = sum(Dataset=="Mouse colon enteric neurons (Smart-Seq2)"),
+                         glia_labeled = sum(Dataset=="Mouse colon enteric glia (Smart-Seq2)"),
+                         max_sig_neur = max(sig_score_neur),
+                         max_sig_glia = max(sig_score_glia),
+                         inlocal = if(max_sig_neur > max_sig_glia){"neuron"}else{"glia"})
+data.frame(pheno_clust)
+```
+  
+here we also get a few 'neur-like glia' or 'glia-like neur'  
+(I used to use "Sample_ID" as batch, do 'mean only' correction, and take top 1500 variable genes from whole dataset,  
+then only get 9 neur-like which all appear in 'marker genes' part upstairs different from labelings,  
+but these unmodified parameters failed in sub-clustering, so here just stay the same with next step)    
+
+('taking top 1500 vargenes from whole' and 'top 1500 from each batch, merging and taking sorted new top 1500 as vargenes' would have less than half genes overlap,  
+depending on 'Mouse or Sample to choose as one batch' and 'neur/glia or mixed')   
+
+```{r}
+# new batch info
+var_c_mix <- as.factor(batch_use.ss2_mix)
+levels(var_c_mix)[table(var_c_mix) < min_cells] <- "merge"
+
+# top 1500 from whole once  
+ss2_mix_var <- get_var_genes(ss2_mix.seur@assays[['RNA']]@data, samples=ss2_mix.seur$orig.ident, num_genes = 1500,min_cells = 20)
+
+# top 1500 from each, merge, then new top 1500 from sorted by repeating times   
+ss2_mix_var_c <- get_var_genes(ss2_mix.seur@assays[['RNA']]@data, samples = var_c_mix, num_genes = 1500,min_cells = 20)
+
+cat("ss2_mix vargenes: 1500\noverlap of 'sorted merged from each batch' and 'from whole': ",
+    sum(ss2_mix_var %in% ss2_mix_var_c),
+    "\nspecific genes to exclude (^Cd|^Ig|^Rn|^mt|^Rp): ",length(grep('^Cd|^Ig|^Rn|^mt|^Rp', ss2_mix_var_c)))
+```
+  
+
+```{r paged.print=FALSE}
+data.frame(pheno_clust)
+```
+
+could see pheno_clust '0' and '2' may be non-ideal to use max sig_score as a standard to decide glia/neuron,  
+though the final 'inlocal' cluster is 'right'  
+neur vs glia  
+1.65 vs 1.80  
+1.79 vs 1.81  
+
+
+#### outliers   
+   
+check those cells different from neur/glia labelings  
+highest neur scores (1.65, 1.79) in glia are indeed from them  
+```{r}
+ss2_mix.seur@meta.data %>% filter(phenograph.k250 %in%  c("0","2") & Dataset == "Mouse colon enteric neurons (Smart-Seq2)")
+```
+  
+```{r}
+ss2_mix.seur@meta.data %>% filter(phenograph.k250 %in%  c("6","7") & Dataset == "Mouse colon enteric glia (Smart-Seq2)")
+```
+
+except a small part have low or close neur/glia score, not sure about why others get into a cluster which is different from its labeling.  
+here just make a mark for them, sub-clustering would still use initially labeled ss2_neur/glia as input instead of this one.   
+
+#### result and check         
+
+inlocal final result for mixed ss2_neur/glia   
+```{r ss2_mix_inlocal, fig.height = 4.8, fig.width = 6.8}
+ss2_mix.seur@meta.data$inlocal <- ss2_mix.seur@meta.data$phenograph.k250
+for(i in 1:length(ss2_mix.seur@meta.data$inlocal)){
+  if(ss2_mix.seur@meta.data$inlocal[i] %in% c("0","1","2")){
+    ss2_mix.seur@meta.data$inlocal[i] <- "ss2_glia"
+  }else{
+      ss2_mix.seur@meta.data$inlocal[i] <- "ss2_neur"
+    }
+}
+
+DimPlot(ss2_mix.seur, group.by = 'inlocal') + labs(title = "ss2_mix inlocal")
+```
+
+inpaper's   
+```{r ss2_mix_inpaper, fig.height = 4.8, fig.width = 6.8}
+ss2_mix.seur@meta.data$inpaper <- ss2_mix.seur@meta.data$Dataset
+for(i in 1:length(ss2_mix.seur@meta.data$inpaper)){
+  if(ss2_mix.seur@meta.data$inpaper[i] %in% c("Mouse colon enteric glia (Smart-Seq2)")){
+    ss2_mix.seur@meta.data$inpaper[i] <- "ss2_glia"
+  }else{
+      ss2_mix.seur@meta.data$inpaper[i] <- "ss2_neur"
+    }
+}
+
+DimPlot(ss2_mix.seur, group.by = 'inpaper') + labs(title = "ss2_mix inpaper")
+```
+
+
+check main division marker genes of neur   
+three pairs, all devide neur into two parts,  
+could see Chat-Nos1 works well for ss2_neur uniquely, the other two pairs have more or less expression on glia   
+
+```{r ss2_mix_marker1, fig.height = 9.6, fig.width = 8.8}
+FeaturePlot(ss2_mix.seur, features = c("Chat","Nos1","Gfra2","Gfra1","Casz1","Etv1"))
+```
+
+check given marker genes of glia,  
+could see these three genes faintly devide glia into two or three parts from top-right to down-left,  
+but not so clear comparing to neur   
+
+```{r ss2_mix_marker2, fig.height = 6.4, fig.width = 8.8}
+FeaturePlot(ss2_mix.seur, features = c("Gfra2","Slc18a2","Ntsr1"))
+```
+
+
+
+```{r message=FALSE, warning=FALSE}
+#saveRDS(ss2_mix.seur,"ss2_mix.seur.rds")
+#rm(ss2_mix.seur,ss2_mix.counts)
+```
+  
+  
+## subclustering    
+### batch info        
+
+check how many min_cells to choose to merge batch  
+```{r}
+cat("profiled ss2_neur in each Mouse: \n");table(allmeta_ss2_neur$Mouse_ID)[paste0("M",1:29)]
+cat("\n quantile statistics: \n");quantile(table(allmeta_ss2_neur$Mouse_ID),probs=seq(0,1,0.05))
+```
+
+```{r}
+min_cells <- 5
+cat("ss2_neur mice: ",length(table(allmeta_ss2_neur$Mouse_ID)),
+    "\nss2_neur count: ",sum(table(allmeta_ss2_neur$Mouse_ID)),
+    paste0("\nmin_cell < ",min_cells," : "),
+    "\n    mice ",sum(table(allmeta_ss2_neur$Mouse_ID) < min_cells),
+    "\n    count ",sum((table(allmeta_ss2_neur$Mouse_ID))[table(allmeta_ss2_neur$Mouse_ID) < min_cells]))
+```
+  
+  
+```{r}
+cat("profiled ss2_glia in each Mouse: \n");table(allmeta_ss2_glia$Mouse_ID)[paste0("M",1:29)]
+cat("\n quantile statistics: \n");quantile(table(allmeta_ss2_glia$Mouse_ID),probs=seq(0,1,0.05))
+```
+
+
+```{r}
+min_cells <- 5
+cat("ss2_glia mice: ",length(table(allmeta_ss2_glia$Mouse_ID)),
+    "\nss2_glia count: ",sum(table(allmeta_ss2_glia$Mouse_ID)),
+    paste0("\nmin_cell < ",min_cells," : "),
+    "\n    mice ",sum(table(allmeta_ss2_glia$Mouse_ID) < min_cells),
+    "\n    count ",sum((table(allmeta_ss2_glia$Mouse_ID))[table(allmeta_ss2_glia$Mouse_ID) < min_cells]))
+```
+
+
+### subclustering    
+  
+modified parameters for Phenograph in paper:  
+ss2_neur  PCs 30 1-15, 'k'NN 15    
+ss2_glia  PCs 15 1-9, 'k'NN 500  
+```{r}
+# ss2_neur
+batch_use.ss2_neur <- as.character(allmeta_ss2_neur$Mouse_ID)
+names(batch_use.ss2_neur) <- rownames(allmeta_ss2_neur)
+batch_use.ss2_neur <- factor(batch_use.ss2_neur)
+
+#ss2_neur.seur <- run_analysis(name="ss2_neur",
+#                             counts=ss2_neur.counts,
+#                             do.batch=TRUE,
+#                             batch.use=batch_use.ss2_neur,
+#                             min_cells=5,
+#                             var_regex='^Cd|^Ig|^Rn|^mt|^Rp',
+#                             num_pcs=30,
+#                             clust_pcs=15,
+#                             k=15)
+
+#ss2_neur.seur@meta.data <- cbind(ss2_neur.seur@meta.data, allmeta_ss2_neur[rownames(ss2_neur.seur@meta.data),])
+
+
+# ss2_glia
+batch_use.ss2_glia <- as.character(allmeta_ss2_glia$Mouse_ID)
+names(batch_use.ss2_glia) <- rownames(allmeta_ss2_glia)
+batch_use.ss2_glia <- factor(batch_use.ss2_glia)
+
+#ss2_glia.seur <- run_analysis(name="ss2_glia",
+#                             counts=ss2_glia.counts,
+#                             do.batch=TRUE,
+#                             batch.use=batch_use.ss2_glia,
+#                             min_cells=5,
+#                             var_regex='^Cd|^Ig|^Rn|^mt|^Rp',
+#                             num_pcs=15,
+#                             clust_pcs=9,
+#                             k=500)
+
+#ss2_glia.seur@meta.data <- cbind(ss2_glia.seur@meta.data, allmeta_ss2_glia[rownames(ss2_glia.seur@meta.data),])
+
+```
+
+```{r}
+#saveRDS(ss2_neur.seur,"ss2_neur.seur.rds")
+#saveRDS(ss2_glia.seur,"ss2_glia.seur.rds")
+```
+
+because this kind of step takes time and everytime to run would get a little different result,  
+here just use same parameters to run once then annotate the code, next always use the saved seurat object for analysis    
+  
+```{r}
+#head(ss2_neur.seur@meta.data)
+#head(ss2_glia.seur@meta.data)
+```
+  
+here's a small bug for ss2_glia I have never solved after running this for so many times,  
+ss2_glia.seur has an orig.ident and active.ident named by "Mouse_Sample" from its sample names instead of specified 'name' in the script,  
+but with the same code, ss2_neur.seur's org.ident and active.ident are always the value of 'name',  
+this only affects the plotting, guess there's sth. different between ss2_neur/glia mtx files, just fix it  
+
+```{r}
+#ss2_glia.seur@active.ident <- ss2_glia.seur@meta.data$orig.ident <- factor("ss2_glia")
+```
+
+```{r}
+#saveRDS(ss2_neur.seur,"ss2_neur.seur.rds")
+#saveRDS(ss2_glia.seur,"ss2_glia.seur.rds")
+```
+
+```{r}
+ss2_neur.seur <- readRDS("ss2_neur.seur.rds")
+ss2_glia.seur <- readRDS("ss2_glia.seur.rds")
+```
+  
+#### var genes    
+
+check variable genes to use   
+
+```{r}
+# new batch info
+var_c_neur <- as.factor(batch_use.ss2_neur)
+levels(var_c_neur)[table(var_c_neur) < min_cells] <- "merge"
+
+# top 1500 from whole once  
+ss2_neur_var <- get_var_genes(ss2_neur.seur@assays[['RNA']]@data, samples=ss2_neur.seur$orig.ident, num_genes = 1500,min_cells = 5)
+
+# top 1500 from each, merge, then new top 1500 from sorted by repeating times   
+ss2_neur_var_c <- get_var_genes(ss2_neur.seur@assays[['RNA']]@data, samples = var_c_neur, num_genes = 1500,min_cells = 5)
+
+cat("ss2_neur vargenes: 1500\noverlap of 'sorted merged from each batch' and 'from whole': ",
+    sum(ss2_neur_var %in% ss2_neur_var_c),
+    "\nspecific genes to exclude (^Cd|^Ig|^Rn|^mt|^Rp): ",length(grep('^Cd|^Ig|^Rn|^mt|^Rp', ss2_neur_var_c)))
+```
+
+  
+```{r}
+# new batch info
+var_c_glia <- as.factor(batch_use.ss2_glia)
+levels(var_c_glia)[table(var_c_glia) < min_cells] <- "merge"
+
+# top 1500 from whole once  
+ss2_glia_var <- get_var_genes(ss2_glia.seur@assays[['RNA']]@data, samples=ss2_glia.seur$orig.ident, num_genes = 1500,min_cells = 5)
+
+# top 1500 from each, merge, then new top 1500 from sorted by repeating times   
+ss2_glia_var_c <- get_var_genes(ss2_glia.seur@assays[['RNA']]@data, samples = var_c_glia, num_genes = 1500,min_cells = 5)
+
+cat("ss2_glia vargenes: 1500\noverlap of 'sorted merged from each batch' and 'from whole': ",
+    sum(ss2_glia_var %in% ss2_glia_var_c),
+    "\nspecific genes to exclude (^Cd|^Ig|^Rn|^mt|^Rp): ",length(grep('^Cd|^Ig|^Rn|^mt|^Rp', ss2_glia_var_c)))
+```
+  
+  
+here comes a question I haven't explored the answers.  
+who not directly use variable genes or even corrected batches from ss2_mix's ?    
+here just restart those steps for sub-clustering.    
+  
+###  ss2_neur    
+check results   
+
+
+#### PCs     
+
+```{r}
+ElbowPlot(ss2_neur.seur,ndims = 30) + labs(title = "ss2_neur PCs, take 1-15")
+```
+
+PC1&2  
+
+```{r ss2_neur_pca, fig.height = 4.8, fig.width = 6.8}
+DimPlot(ss2_neur.seur, reduction = 'pca', dims = c(1,2)) + labs(title = "ss2_neur PC1+2 ")
+```
+
+```{r ss2_neur_pca2, fig.height = 4.8, fig.width = 7.8}
+DimPlot(ss2_neur.seur, reduction = 'pca', dims = c(1,2), group.by = 'Annotation') + labs(title = "ss2_neur PC1+2  with inpaper annotations")
+```
+
+
+#### tSNE     
+
+```{r ss2_neur_tsne, fig.height = 4.8, fig.width = 6.8}
+DimPlot(ss2_neur.seur, reduction = 'tsne') + labs(title = "ss2_neur tSNE")
+```
+
+```{r ss2_neur_tsne2, fig.height = 4.8, fig.width = 7.8}
+DimPlot(ss2_neur.seur, reduction = 'tsne', group.by = 'Annotation',label = T ) + labs(title = "ss2_neur tSNE  with  inpaper annotations")
+```
+
+Phenograph clusters   
+
+```{r warning=FALSE,ss2_neur_pheno, fig.height = 4.8, fig.width = 6.8}
+DimPlot(ss2_neur.seur, group.by = 'phenograph.k15', label = T) + labs(title = "ss2_neur Phenograph output")
+```
+  
+#### annotation    
+
+could see ss2_neur get 21 (inpaper) + 4 more (inlocal) = 25 sub-clusters.  
+how to really annotate them need to combine considerations of 'modification of clustering parameters' and 'marker genes of each sub-cluster relating to biological background',   
+it shouldn't be an easy part, but here we just do it in an easy way to annotate each cluster for a similar result like inpaper's  
+  
+  
+```{r message=FALSE, warning=FALSE}
+pheno_neur <- ss2_neur.seur@meta.data[c('phenograph.k15','Annotation')]
+pheno_neur <- group_by(pheno_neur, phenograph.k15)
+
+pheno_neur <- summarise(pheno_neur,
+                         count=n(),
+                         PEMN_1_inpaper = sum(Annotation == 'PEMN_1'),
+                         PEMN_2_inpaper = sum(Annotation == 'PEMN_2'),
+                         PEMN_3_inpaper = sum(Annotation == 'PEMN_3'),
+                         PEMN_4_inpaper = sum(Annotation == 'PEMN_4'),
+                         PEMN_5_inpaper = sum(Annotation == 'PEMN_5'),
+                         PIMN_1_inpaper = sum(Annotation == 'PIMN_1'),
+                         PIMN_2_inpaper = sum(Annotation == 'PIMN_2'),
+                         PIMN_3_inpaper = sum(Annotation == 'PIMN_3'),
+                         PIMN_4_inpaper = sum(Annotation == 'PIMN_4'),
+                         PIMN_5_inpaper = sum(Annotation == 'PIMN_5'),
+                         PIMN_6_inpaper = sum(Annotation == 'PIMN_6'),
+                         PIMN_7_inpaper = sum(Annotation == 'PIMN_7'),
+                         PIN_1_inpaper = sum(Annotation == 'PIN_1'),
+                         PIN_2_inpaper = sum(Annotation == 'PIN_2'),
+                         PIN_3_inpaper = sum(Annotation == 'PIN_3'),
+                         PSN_1_inpaper = sum(Annotation == 'PSN_1'),
+                         PSN_2_inpaper = sum(Annotation == 'PSN_2'),
+                         PSN_3_inpaper = sum(Annotation == 'PSN_3'),
+                         PSN_4_inpaper = sum(Annotation == 'PSN_4'),
+                         PSVN_1_inpaper = sum(Annotation == 'PSVN_1'),
+                         PSVN_2_inpaper = sum(Annotation == 'PSVN_2'))
+  
+#pheno_neur
+pheno_neur <- rbind(pheno_neur,c("count",colSums(pheno_neur[,2:ncol(pheno_neur)])))
+pheno_neur <- data.frame(t(pheno_neur))[c(1,3:23,2),][,c(order(as.numeric(pheno_neur$phenograph.k15[1:25])),26)]
+colnames(pheno_neur) <- c(paste0("pheno_",pheno_neur[1,1:ncol(pheno_neur)-1]),"count")
+pheno_neur <- pheno_neur[2:nrow(pheno_neur),]
+pheno_neur
+```
+
+
+```{r ss2_neur_phenocount1, fig.height= 4.8, fig.width=8.2}
+pheatmap::pheatmap(pheno_neur %>%  mutate_all(as.numeric), cluster_rows = F, cluster_cols = F, breaks = seq(0,300,3),
+                   display_numbers =T, number_format = '%.0f', labels_row= rownames(pheno_neur))
+```
+
+
+check for each sub-clusters_inpaper  
+
+PEMNs_inpaper: totoally separated from other groups except to share pheno "1" (20, 10%) with PSN_4, but get mixed inside, _3 share a little "1" with _4/5, _2/4/5 share "12", so do pheno "16","20","6","7"  
+
+PIMNs_inpaper: similarly mixed inside, share pheno "0","10","2","23","3-5"  
+
+PINS_inpaper: mainly contain pheno "13" (_2/3 share),"14","17","8"  
+
+PSNs_inpaper: mainly contain pheno "11","15","19","24", _4 take some "1" from PEMN_3, _3 take some "14" and "8" from PIN_1  
+
+PSVNs_inpaper: mainly contain pheno "18" and "9"(_1 19, _2 80)  
+  
+  
+then we have    
+
+PEMNs_inlocal:  pheno "7","12","22","1","16","20","6" as PEMN_1-7     
+
+PIMNs_inlocal:  pheno "21","4","5","0","2","3","10","23" as PIMN_1-8       
+
+PINs_inlocal:  pheno "8","14","17","13" as PIN_1-4     
+
+PSNs_inlocal:  pheno "19","24","11","15" as PSN_1-4       
+    
+PSVNs_inlocal:  pheno "18","9" as PSVN_1-4       
+  
+this might be laboursome to do it manually,   
+one way to do it automatically could be sorting the max count for each one to get a result like the heatmap below   
+(however still a cheap way to simulate a similar result but not for initial annotations)  
+
+```{r ss2_neur_phenocount2, fig.height= 4.8, fig.width=8.2}
+pheatmap::pheatmap(pheno_neur[,c(paste0("pheno_",c(7,12,22,1,16,20,6,21,4,5,0,2,3,10,23,8,14,17,13,19,24,11,15,18,9)),"count")] %>% 
+                     mutate_all(as.numeric), 
+                   cluster_rows = F, cluster_cols = F, breaks = seq(0,300,3),
+                   display_numbers =T, number_format = '%.0f', labels_row= rownames(pheno_neur))
+```
+  
+  
+then we have  
+```{r ss2_neur_phenocount3, fig.height= 4.8, fig.width=8.3}
+subclust_neur <- data.frame(inlocal=paste0(c(paste0("PEMN_",1:7),paste0("PIMN_",1:8),paste0("PIN_",1:4),paste0("PSN_",1:4),paste0("PSVN_",1:2))),
+                            raw=paste0("pheno_",c(7,12,22,1,16,20,6,21,4,5,0,2,3,10,23,8,14,17,13,19,24,11,15,18,9)))
+
+pheatmap::pheatmap(pheno_neur[,c(subclust_neur$raw,"count")] %>% 
+                     mutate_all(as.numeric), 
+                   cluster_rows = F, cluster_cols = F, breaks = seq(0,300,3),
+                   display_numbers =T, number_format = '%.0f', labels_row= rownames(pheno_neur),
+                   labels_col = c(paste0(subclust_neur$inlocal,"_inlocal"),"count"),
+                   gaps_col = c(7,15,19,23,25), gaps_row = c(5,12,15,19,21))
+```
+  
+```{r}
+#write.table(pheno_neur,"pheno_neur.ss2.csv",col.names = TRUE,row.names = TRUE,sep = ",",quote = F)
+```
+
+
+label inlocal ss2_neur sub-clusters   
+```{r}
+ss2_neur.seur@meta.data$inlocal <- paste0("pheno_",ss2_neur.seur@meta.data$phenograph.k15)
+for(i in 1:length(ss2_neur.seur@meta.data$inlocal)){
+  ss2_neur.seur@meta.data$inlocal[i] <- subclust_neur$inlocal[subclust_neur$raw == ss2_neur.seur@meta.data$inlocal[i]]
+}
+
+```
+
+```{r ss2_neur_inlocal, fig.height=4.8, fig.width=7.8}
+DimPlot(ss2_neur.seur, group.by = 'inlocal', label = T) + labs(title = "ss2_neur inlocal")
+```
+
+for ss2_neur sub-clustering, comparing to inpaper annotations,  
+we get a generally separated result between groups, but broadly mixed within one group, and partly mixed across some groups  
+
+```{r  ss2_neur_inpaper, fig.height = 4.8, fig.width = 7.8}
+DimPlot(ss2_neur.seur, group.by = 'Annotation', label = T) + labs(title = "ss2_neur inpaper")
+```
+
+#### check   
+
+marker pairs for main division into two groups   
+
+```{r ss2_neur_marker, fig.height = 10, fig.width = 8.8}
+FeaturePlot(ss2_neur.seur, features = c("Chat","Nos1","Gfra2","Gfra1","Casz1","Etv1"))
+```
+
+group by conditions  
+
+```{r ss2_neur_cnt, fig.height = 6.6, fig.width = 12}
+multiplot(
+DimPlot(ss2_neur.seur, group.by = 'Age',order=(c("NA","11","12","52","104","105")), 
+                   cols = rev(c("#312D8F","#312D8F","#7BAF42","#CB452B","#CB452B"))) + 
+                labs(title = "Age"),
+DimPlot(ss2_neur.seur, group.by = 'Segment',order=(c("NA","7AM","2PM","7PM"))) + labs(title = "Segment"),
+DimPlot(ss2_neur.seur, group.by = 'Model') + labs(title = "Model"),
+DimPlot(ss2_neur.seur, group.by = 'nGene', cols = material.heat(1909)) + labs(title = "Number of genes")  + 
+             guides(colour = guide_coloursteps(show.limits = TRUE,label=FALSE)),
+DimPlot(ss2_neur.seur, group.by = 'Sex') + labs(title = "Sex"),
+DimPlot(ss2_neur.seur, group.by = 'Time',order=(c("NA","7AM","2PM","7PM"))) + labs(title = "Time"),
+cols=3)
+```
+
+by batch(Mouse_ID)  
+
+```{r  ss2_neur_MI, fig.height = 4.8, fig.width = 6.8}
+DimPlot(ss2_neur.seur, group.by = 'Mouse_ID', order=paste0("M",as.character(rev(1:29)))) + labs(title = "Mouse") +
+                  theme(legend.text=element_text(size=8))
+```
+
+(other analysis for ss2_neur sub-clusters all in another subpage)   
+   
+   
+### ss2_glia     
+
+check results    
+
+#### PCs     
+
+```{r}
+ElbowPlot(ss2_glia.seur,ndims = 15) + labs(title = "ss2_glia PCs, take 1-9")
+```
+
+PC1&2  
+
+```{r ss2_glia_pca1, fig.height = 4.8, fig.width = 6.8}
+DimPlot(ss2_glia.seur, reduction = 'pca', dims = c(1,2)) + labs(title = "ss2_glia PC1+2 ")
+```
+
+```{r ss2_glia_pca2, fig.height = 4.8, fig.width = 6.8}
+DimPlot(ss2_glia.seur, reduction = 'pca', dims = c(1,2), group.by = 'Annotation') + labs(title = "ss2_glia PC1+2  with inpaper annotations")
+```
+
+
+#### tSNE      
+```{r ss2_glia_tsne1, fig.height = 4.8, fig.width = 6.8}
+DimPlot(ss2_glia.seur, reduction = 'tsne') + labs(title = "ss2_glia tSNE")
+```
+
+```{r ss2_glia_tsne2, fig.height = 4.8, fig.width = 6.8}
+DimPlot(ss2_glia.seur, reduction = 'tsne', group.by = 'Annotation',label = T ) + labs(title = "ss2_glia tSNE  with  inpaper annotations")
+```
+
+Phenograph clusters   
+
+```{r warning=FALSE,ss2_glia_pheno, fig.height = 4.8, fig.width = 6.8}
+DimPlot(ss2_glia.seur, group.by = 'phenograph.k500', label = T) + labs(title = "ss2_glia Phenograph output")
+```
+
+#### annotation    
+   
+could see we get a same 3 clusters with a very big 'k' for kNN setting,  
+one downleft cluster with 99% matched but the other two with 1/5-1/4 mixed   
+
+```{r message=FALSE, warning=FALSE}
+pheno_glia <- ss2_glia.seur@meta.data[c('phenograph.k500','Annotation')]
+pheno_glia <- group_by(pheno_glia, phenograph.k500)
+
+pheno_glia <- summarise(pheno_glia,
+                         count=n(),
+                         Glia_1_inpaper = sum(Annotation == 'Glia_1'),
+                         Glia_2_inpaper = sum(Annotation == 'Glia_2'),
+                         Glia_3_inpaper = sum(Annotation == 'Glia_3'))
+
+pheno_glia <- rbind(pheno_glia,c("count",colSums(pheno_glia[,2:ncol(pheno_glia)])))
+pheno_glia <- data.frame(t(pheno_glia))[c(1,3:5,2),][,c(order(as.numeric(pheno_glia$phenograph.k500[1:3])),4)]
+colnames(pheno_glia) <- c(paste0("pheno_",pheno_glia[1,1:ncol(pheno_glia)-1]),"count")
+pheno_glia <- pheno_glia[2:nrow(pheno_glia),]
+pheno_glia
+```
+
+so, annotate with max count as ss2_neur  
+
+```{r ss2_glia_phenocount1, fig.height= 4.8, fig.width=8.2}
+pheatmap::pheatmap(pheno_glia[,c(2,1,3,4)] %>%  mutate_all(as.numeric), cluster_rows = F, cluster_cols = F, breaks = seq(0,1200,12),
+                   display_numbers =T, number_format = '%.0f', labels_row= rownames(pheno_glia))
+```
+  
+less clusters so faster to get  
+```{r ss2_glia_phenocount2, fig.height= 4.8, fig.width=8.2}
+pheatmap::pheatmap(pheno_glia[,c(2,1,3,4)] %>%  mutate_all(as.numeric), cluster_rows = F, cluster_cols = F, breaks = seq(0,1200,12),
+                   display_numbers =T, number_format = '%.0f', labels_row= rownames(pheno_glia),
+                   labels_col = c(paste0("Glia_",1:3,"_inlocal"),"count"))
+```
+
+
+
+label inlocal ss2_glia sub-clusters  
+```{r}
+ss2_glia.seur@meta.data$inlocal <- ss2_glia.seur@meta.data$phenograph.k500
+ss2_glia.seur@meta.data$inlocal[ss2_glia.seur@meta.data$inlocal=="1"] <- "Glia_1"
+ss2_glia.seur@meta.data$inlocal[ss2_glia.seur@meta.data$inlocal=="0"] <- "Glia_2"
+ss2_glia.seur@meta.data$inlocal[ss2_glia.seur@meta.data$inlocal=="2"] <- "Glia_3"
+```
+
+```{r ss2_glia_inlocal, fig.height = 4.8, fig.width = 6.8}
+DimPlot(ss2_glia.seur, group.by = 'inlocal', label = T) + labs(title = "ss2_glia inlocal")
+```
+
+for ss2_glia sub-clustering, comparing to inpaper annotations,  
+we get mostly matched Glia_1, but partly mixed Glia_2/3    
+
+```{r ss2_glia_inpaper, fig.height = 4.8, fig.width = 6.8}
+DimPlot(ss2_glia.seur, group.by = 'Annotation', label = T) + labs(title = "ss2_glia inpaper")
+```
+    
+#### check     
+  
+marker genes   
+
+```{r ss2_glia_marker, fig.height = 6.4, fig.width = 8.8}
+FeaturePlot(ss2_glia.seur, features = c("Gfra2","Slc18a2","Ntsr1"))
+```
+
+group by conditions  
+
+```{r ss2_glia_cnt, fig.height = 6.6, fig.width = 12}
+multiplot(
+DimPlot(ss2_glia.seur, group.by = 'Age',order=(c("NA","11","12","52","104","105")), 
+                   cols = rev(c("#312D8F","#312D8F","#7BAF42","#CB452B","#CB452B"))) + 
+                labs(title = "Age"),
+DimPlot(ss2_glia.seur, group.by = 'Segment',order=(c("NA","7AM","2PM","7PM"))) + labs(title = "Segment"),
+DimPlot(ss2_glia.seur, group.by = 'Model') + labs(title = "Model"),
+DimPlot(ss2_glia.seur, group.by = 'nGene', cols = material.heat(1909)) + labs(title = "Number of genes")  + 
+             guides(colour = guide_coloursteps(show.limits = TRUE,label=FALSE)),
+DimPlot(ss2_glia.seur, group.by = 'Sex') + labs(title = "Sex"),
+DimPlot(ss2_glia.seur, group.by = 'Time',order=(c("NA","7AM","2PM","7PM"))) + labs(title = "Time"),
+cols=3)
+```
+
+by batch(Mouse_ID)  
+
+```{r ss2_glia_MI, fig.height = 4.8, fig.width = 6.8}
+DimPlot(ss2_glia.seur, group.by = 'Mouse_ID', order=paste0("M",as.character(rev(1:29)))) + labs(title = "Mouse") +
+                  theme(legend.text=element_text(size=8))
+```
+
+
+(other analysis for ss2_glia sub-clusters all in another subpage)   
+
+  
+  
+
+```{r}
+#saveRDS(ss2_neur.seur,"ss2_neur.seur.rds")
+#saveRDS(ss2_glia.seur,"ss2_glia.seur.rds")
+```
+  
+    

@@ -1,0 +1,4300 @@
+---
+output: 
+  html_document: 
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+---
+
+
+# sn-ENS neuron integration         
+                  
+              
+advanced:             
+        
+        
+clustering modification                              
+                     
+cell composition           
+             
+all markers             
+                            
+check signature score of some genesets           
+
+
+               
+```{r message=FALSE, warning=FALSE}
+source("/Shared_win/projects/RNA_normal/analysis.10x.r")
+```
+
+
+## load integrated obj                      
+
+
+```{r}
+GEX.seur <- readRDS("./sn10x_WYS.sct_anno.rds")
+GEX.seur
+```
+
+
+```{r fig.height=6, fig.width=8.1}
+#scales::show_col(ggsci::pal_igv("default")(49))
+```
+
+
+```{r}
+color.cnt <- scales::hue_pal()(4)[c(2,1,4,3)]
+color.cnt
+```
+
+
+```{r paged.print=FALSE}
+head(GEX.seur@meta.data)
+```
+
+
+```{r fig.width=10.8,fig.height=4.5}
+DimPlot(GEX.seur, reduction = "umap", label = T, label.size = 3.25, group.by = "newAnno") +
+  DimPlot(GEX.seur, reduction = "umap", label = F, group.by = "cnt", cols = color.cnt)
+```
+
+
+```{r fig.width=10.8,fig.height=4.5}
+DimPlot(GEX.seur, reduction = "umap", label = T, label.size = 3.75, group.by = "seurat_clusters") +
+  DimPlot(GEX.seur, reduction = "umap", label = F, group.by = "cnt", cols = color.cnt)
+```
+
+
+```{r  fig.width=12.6, fig.height=3.9}
+DimPlot(GEX.seur, label = F, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "cnt", split.by = "cnt", ncol = 4, cols = color.cnt)
+```
+
+
+```{r fig.width=10.8, fig.height=4.5}
+DimPlot(subset(GEX.seur, subset = cnt %in% c("Nb5d.PBS","Nb5d.INF")), label = F, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "cnt", cols = color.cnt[1:2]) +
+DimPlot(subset(GEX.seur, subset = cnt %in% c("Nb5d.CTL","Nb5d.CKO")), label = F, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "cnt", cols = color.cnt[3:4])
+```
+
+
+### re-clustering                   
+
+
+```{r}
+DefaultAssay(GEX.seur) <- "integrated"
+GEX.seur
+```
+
+
+```{r}
+ElbowPlot(GEX.seur, ndims = 100)
+```
+
+
+```{r}
+ElbowPlot(GEX.seur, ndims = 50)
+```
+
+
+```{r}
+PCsct <- 1:20
+
+GEX.seur <- FindNeighbors(GEX.seur, k.param = 18, dims = PCsct, compute.SNN = T, reduction = 'pca', verbose = T)
+GEX.seur <- FindClusters(GEX.seur, dims.use = PCsct, algorithm = 1, save.SNN =T, resolution =2, reduction = 'pca', verbose = T)
+```
+
+
+```{r fig.width=11.5, fig.height=4.5}
+DimPlot(GEX.seur, label = T, pt.size = 0.05, repel = F, reduction = 'tsne', group.by = "seurat_clusters") +
+DimPlot(GEX.seur, label = T, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "seurat_clusters")
+```
+
+
+```{r fig.width=10.8, fig.height=4.5}
+DimPlot(GEX.seur, label = T, pt.size = 0.05, repel = F, reduction = 'tsne', group.by = "newAnno") +
+DimPlot(GEX.seur, label = T, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "newAnno")
+```
+
+
+```{r fig.width=10.8, fig.height=4.5}
+DimPlot(GEX.seur, label = T, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "seurat_clusters") +
+DimPlot(GEX.seur, label = T, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "newAnno")
+```
+
+
+```{r  fig.width=12.6, fig.height=3.9}
+DimPlot(GEX.seur, label = F, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "cnt", split.by = "cnt", ncol = 4, cols = color.cnt)
+```
+
+
+```{r}
+DefaultAssay(GEX.seur) <- "SCT"
+GEX.seur
+```
+
+            
+
+```{r}
+# sort_clusters                         
+
+GEX.seur$sort_clusters <- factor(as.character(GEX.seur$seurat_clusters),
+                                 levels = c(0,1,11,5,16,19,        # EMN1
+                                            15,8,                  # EMN2
+                                            4,10,                  # EMN3
+                                            17,                    # EMN4
+                                            25,                    # EMN5
+                                            6,3,2,20,              # IMN1
+                                            14,                    # IMN2
+                                            9,28,                  # IMN3
+                                            26,                    # IMN4
+                                            12,                    # IN1
+                                            24,                    # IN2
+                                            30,                    # IN3
+                                            21,22,13, 29,          # IPAN1
+                                            7, 18,                 # IPAN2
+                                            27,                    # IPAN3
+                                            23                     # IPAN4
+                                            ))
+
+
+
+
+
+
+
+
+# ttAnno1 (based on individual newAnno)             
+#    hold 
+# ttAnno2 (sub-cluster IPAN1/2 as .1 & .2)                                
+#    hold
+
+```
+
+
+
+```{r}
+markers.new.ss <- list(EMN=c("Chat","Bnc2","Tox","Ptprt",
+                       "Gfra2","Oprk1","Adamtsl1", 
+                       "Fbxw15","Fbxw24","Chrna7",
+                       "Satb1","Itga6","Cntnap5b",
+                       "Pgm5","Chgb",
+                       "Nxph1",
+                       "Gabrb1","Glp2r","Nebl",
+                       "Lrrc7",
+                       "Ryr3","Eda",
+                       "Hgf","Lama2","Efnb2",
+                       "Tac1",
+                       "Kctd8",
+                       "Ptn",
+                       "Ntrk2","Penk","Itgb8",
+                       "Fut9","Nfatc1","Egfr","Pdia5",
+                       "Ahr","Mgll",
+                       "Aff3",
+                       "Chrm3"
+                       ),
+                 IMN=c("Nos1","Kcnab1",
+                       "Gfra1","Etv1",
+                       "Man1a","Airn",
+                       "Adcy2",
+                       "Col25a1",
+                       "Cmah","Creb5","Vip","Pde1a",
+                       "Ebf1","Gpc5","Mid1","Igfbp5",
+                       "Ppara",
+                       "Pcdh11x","Adcy8","Grp"
+                       ),
+                 IN=c("Npas3","Synpr","St18","Gal",
+                      "Nova1",
+                      "Cdh10","Kcnk13",
+                      "Neurod6","Moxd1","Sctr",
+                      "Piezo1","Vipr2","Adamts9","Sst","Kcnn2"
+                      ),
+                 IPAN=c("Calb2","Adcy1","Calcb","Nmu","Adgrg6","Pcdh10",
+                        "Ngfr","Galr1","Il7","Aff2",
+                        "Gpr149","Itgb6","Met","Itgbl1",
+                        
+                        "Cdh6","Cdh8",
+                        "Clstn2","Ano2","Ntrk3",
+                        "Cpne4","Vwc2l","Cdh9",
+                        "Car10","Dcc",
+                        "Scgn",
+                        "Vcan","Cck","Piezo2","Kcnh7",
+                        "Rerg","Bmpr1b","Skap1","Ntng1",
+                        "Tafa2","Nxph2"),
+                 CONTAM=c("Actl6b","Phox2b"),
+                 pDEGs=c("Grid2","Ide","Btaf1","Slc15a2","Ccser1","Hdac9","Rspo2","Grem2"))
+```
+
+
+```{r}
+check.markers.ss <- as.vector(unlist(markers.new.ss))
+check.markers.ss
+```
+
+
+```{r}
+length(check.markers.ss)
+sum(check.markers.ss %in% rownames(GEX.seur))
+```
+
+
+
+```{r fig.height=6.5, fig.width=16.5}
+
+pm.All_new.a <- DotPlot(GEX.seur, features = check.markers.ss, group.by = "sort_clusters",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 9.15))+ scale_y_discrete(limits=rev) + labs(title="All - sort_clusters")
+pm.All_new.a
+
+```
+
+
+```{r fig.width=12, fig.height=6}
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt","percent.rb"), ncol = 2, pt.size = 0.01, group.by = "sort_clusters")
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt","percent.rb"), ncol = 2, pt.size = 0, group.by = "sort_clusters")
+```
+
+
+
+#### mod1                
+
+
+```{r}
+DefaultAssay(GEX.seur) <- "integrated"
+GEX.seur
+```
+
+
+```{r}
+# remove C29
+GEX.seur <- subset(GEX.seur, subset= seurat_clusters %in% c(0:28,30))
+GEX.seur
+```
+
+
+```{r fig.width=10.8, fig.height=4.5}
+DimPlot(GEX.seur, label = T, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "seurat_clusters") +
+DimPlot(GEX.seur, label = T, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "newAnno")
+```
+
+
+```{r}
+ElbowPlot(GEX.seur, ndims = 50)
+```
+
+
+```{r}
+PCsct <- 1:18
+
+GEX.seur <- FindNeighbors(GEX.seur, k.param = 12, dims = PCsct, compute.SNN = T, reduction = 'pca', verbose = T)
+GEX.seur <- FindClusters(GEX.seur, dims.use = PCsct, algorithm = 1, save.SNN =T, resolution =2.5, reduction = 'pca', verbose = T)
+```
+
+
+```{r fig.width=11.5, fig.height=4.5}
+DimPlot(GEX.seur, label = T, pt.size = 0.05, repel = F, reduction = 'tsne', group.by = "seurat_clusters") +
+DimPlot(GEX.seur, label = T, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "seurat_clusters")
+```
+
+
+```{r fig.width=12, fig.height=6}
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt","percent.rb"), ncol = 2, pt.size = 0.01, group.by = "seurat_clusters")
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt","percent.rb"), ncol = 2, pt.size = 0, group.by = "seurat_clusters")
+```
+
+
+#### mod2                
+
+
+```{r}
+# remove C34
+GEX.seur <- subset(GEX.seur, subset= seurat_clusters %in% c(0:33))
+GEX.seur
+```
+
+
+```{r fig.width=10.8, fig.height=4.5}
+DimPlot(GEX.seur, label = T, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "seurat_clusters") +
+DimPlot(GEX.seur, label = T, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "newAnno")
+```
+
+
+```{r}
+ElbowPlot(GEX.seur, ndims = 50)
+```
+
+
+```{r}
+PCsct <- 1:18
+
+GEX.seur <- FindNeighbors(GEX.seur, k.param = 12, dims = PCsct, compute.SNN = T, reduction = 'pca', verbose = T)
+GEX.seur <- FindClusters(GEX.seur, dims.use = PCsct, algorithm = 1, save.SNN =T, resolution =2.5, reduction = 'pca', verbose = T)
+```
+
+
+```{r fig.width=11.5, fig.height=4.5}
+pp.umap1 <- DimPlot(GEX.seur, label = T, pt.size = 0.05, repel = F, reduction = 'tsne', group.by = "seurat_clusters") +
+DimPlot(GEX.seur, label = T, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "seurat_clusters")
+pp.umap1
+```
+
+
+```{r eval=FALSE, include=FALSE}
+ggsave("./composition/Baf53cre_Nb.integ.umap1.pdf",
+       width = 11.5, height = 4.5,
+       plot = pp.umap1)
+```
+
+
+```{r fig.width=12, fig.height=6}
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt","percent.rb"), ncol = 2, pt.size = 0.01, group.by = "seurat_clusters")
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt","percent.rb"), ncol = 2, pt.size = 0, group.by = "seurat_clusters")
+```
+
+
+```{r fig.width=10.8, fig.height=4.5}
+DimPlot(GEX.seur, label = T, pt.size = 0.05, repel = F, reduction = 'tsne', group.by = "newAnno") +
+DimPlot(GEX.seur, label = T, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "newAnno")
+```
+
+
+```{r fig.width=10.8, fig.height=4.5}
+DimPlot(GEX.seur, label = T, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "seurat_clusters") +
+DimPlot(GEX.seur, label = T, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "newAnno")
+```
+
+
+```{r  fig.width=12.6, fig.height=3.9}
+DimPlot(GEX.seur, label = F, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "cnt", split.by = "cnt", ncol = 4, cols = color.cnt)
+```
+
+
+
+### intAnno           
+        
+        
+set modified annotations for integration as intAnno1/2    
+
+
+```{r}
+DefaultAssay(GEX.seur) <- "SCT"
+GEX.seur
+```
+
+
+```{r paged.print=FALSE}
+GEX.seur@meta.data[,grep("snn",colnames(GEX.seur@meta.data))] <- NULL
+head(GEX.seur@meta.data)
+```
+
+            
+
+```{r}
+# sort_clusters                         
+
+GEX.seur$sort_clusters <- factor(as.character(GEX.seur$seurat_clusters),
+                                 levels = c(0,5,4,8,16,17,14,        # EMN1
+                                            10,27,11,               # EMN2
+                                            2,6,                    # EMN3
+                                            28,                     # EMN4
+                                            26,                     # EMN5
+                                            1,9,15,3,18,              # IMN1
+                                            13,24,                    # IMN2
+                                            20,                    # IMN3
+                                            29,                    # IMN4
+                                            12,                    # IN1
+                                            25,                    # IN2
+                                            33,                    # IN3
+                                            22,31, 23,30,          # IPAN1
+                                            7, 21,                 # IPAN2
+                                            32,                    # IPAN3
+                                            19                     # IPAN4
+                                            ))
+
+
+
+
+
+
+
+
+# intAnno1 (based on individual newAnno)             
+
+GEX.seur$intAnno1 <- as.character(GEX.seur$seurat_clusters)
+
+GEX.seur$intAnno1[GEX.seur$intAnno1 %in% c(0,5,4,8,16,17,14)] <- "EMN1"
+GEX.seur$intAnno1[GEX.seur$intAnno1 %in% c(10,27,11)] <- "EMN2"
+GEX.seur$intAnno1[GEX.seur$intAnno1 %in% c(2,6)] <- "EMN3"
+GEX.seur$intAnno1[GEX.seur$intAnno1 %in% c(28)] <- "EMN4"
+GEX.seur$intAnno1[GEX.seur$intAnno1 %in% c(26)] <- "EMN5"
+
+GEX.seur$intAnno1[GEX.seur$intAnno1 %in% c(1,9,15,3,18)] <- "IMN1"
+GEX.seur$intAnno1[GEX.seur$intAnno1 %in% c(13,24)] <- "IMN2"
+GEX.seur$intAnno1[GEX.seur$intAnno1 %in% c(20)] <- "IMN3"
+GEX.seur$intAnno1[GEX.seur$intAnno1 %in% c(29)] <- "IMN4"
+
+GEX.seur$intAnno1[GEX.seur$intAnno1 %in% c(12)] <- "IN1"
+GEX.seur$intAnno1[GEX.seur$intAnno1 %in% c(25)] <- "IN2"
+GEX.seur$intAnno1[GEX.seur$intAnno1 %in% c(33)] <- "IN3"
+
+GEX.seur$intAnno1[GEX.seur$intAnno1 %in% c(22,31,23,30)] <- "IPAN1"
+GEX.seur$intAnno1[GEX.seur$intAnno1 %in% c(7,21)] <- "IPAN2"
+GEX.seur$intAnno1[GEX.seur$intAnno1 %in% c(32)] <- "IPAN3"
+GEX.seur$intAnno1[GEX.seur$intAnno1 %in% c(19)] <- "IPAN4"
+
+GEX.seur$intAnno1 <- factor(GEX.seur$intAnno1,
+                            levels = c(paste0("EMN",1:5),
+                                       paste0("IMN",1:4),
+                                       paste0("IN",1:3),
+                                       paste0("IPAN",1:4)))
+
+
+# intAnno2 (sub-cluster IPAN1/2 as .1 & .2)                                
+
+GEX.seur$intAnno2 <- as.character(GEX.seur$seurat_clusters)
+
+GEX.seur$intAnno2[GEX.seur$intAnno2 %in% c(0,5,4,8,16,17,14)] <- "EMN1"
+GEX.seur$intAnno2[GEX.seur$intAnno2 %in% c(10,27,11)] <- "EMN2"
+GEX.seur$intAnno2[GEX.seur$intAnno2 %in% c(2,6)] <- "EMN3"
+GEX.seur$intAnno2[GEX.seur$intAnno2 %in% c(28)] <- "EMN4"
+GEX.seur$intAnno2[GEX.seur$intAnno2 %in% c(26)] <- "EMN5"
+
+GEX.seur$intAnno2[GEX.seur$intAnno2 %in% c(1,9,15,3,18)] <- "IMN1"
+GEX.seur$intAnno2[GEX.seur$intAnno2 %in% c(13,24)] <- "IMN2"
+GEX.seur$intAnno2[GEX.seur$intAnno2 %in% c(20)] <- "IMN3"
+GEX.seur$intAnno2[GEX.seur$intAnno2 %in% c(29)] <- "IMN4"
+
+GEX.seur$intAnno2[GEX.seur$intAnno2 %in% c(12)] <- "IN1"
+GEX.seur$intAnno2[GEX.seur$intAnno2 %in% c(25)] <- "IN2"
+GEX.seur$intAnno2[GEX.seur$intAnno2 %in% c(33)] <- "IN3"
+
+GEX.seur$intAnno2[GEX.seur$intAnno2 %in% c(22,31)] <- "IPAN1.1"
+GEX.seur$intAnno2[GEX.seur$intAnno2 %in% c(23,30)] <- "IPAN1.2"
+GEX.seur$intAnno2[GEX.seur$intAnno2 %in% c(7)] <- "IPAN2.1"
+GEX.seur$intAnno2[GEX.seur$intAnno2 %in% c(21)] <- "IPAN2.2"
+GEX.seur$intAnno2[GEX.seur$intAnno2 %in% c(32)] <- "IPAN3"
+GEX.seur$intAnno2[GEX.seur$intAnno2 %in% c(19)] <- "IPAN4"
+
+GEX.seur$intAnno2 <- factor(GEX.seur$intAnno2,
+                            levels = c(paste0("EMN",1:5),
+                                       paste0("IMN",1:4),
+                                       paste0("IN",1:3),
+                                       paste0("IPAN",c(1.1,1.2,2.1,2.2,3,4))))
+
+
+
+```
+
+
+```{r fig.width=10.8, fig.height=4.5}
+pp.umap2 <- DimPlot(GEX.seur, label = T, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "intAnno1") +
+DimPlot(GEX.seur, label = T, label.size = 2.65, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "intAnno2")
+pp.umap2 
+```
+
+
+```{r eval=FALSE, include=FALSE}
+ggsave("./composition/Baf53cre_Nb.integ.umap2.pdf",
+       width = 10.8, height = 4.5,
+       plot = pp.umap2)
+```
+
+
+
+```{r  fig.width=12.6, fig.height=3.9}
+pp.umap3 <- DimPlot(GEX.seur, label = F, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "cnt", split.by = "cnt", ncol = 4, cols = color.cnt)
+pp.umap3
+```
+
+
+```{r eval=FALSE, include=FALSE}
+ggsave("./composition/Baf53cre_Nb.integ.umap3.pdf",
+       width = 12.6, height = 3.9,
+       plot = pp.umap3)
+```
+
+
+```{r}
+markers.new.ss <- list(EMN=c("Chat","Bnc2","Tox","Ptprt",
+                       "Gfra2","Oprk1","Adamtsl1", 
+                       "Fbxw15","Fbxw24","Chrna7",
+                       "Satb1","Itga6","Cntnap5b",
+                       "Pgm5","Chgb",
+                       "Nxph1",
+                       "Gabrb1","Glp2r","Nebl",
+                       "Lrrc7",
+                       "Ryr3","Eda",
+                       "Hgf","Lama2","Efnb2",
+                       "Tac1",
+                       "Kctd8",
+                       "Ptn",
+                       "Ntrk2","Penk","Itgb8",
+                       "Fut9","Nfatc1","Egfr","Pdia5",
+                       "Ahr","Mgll",
+                       "Aff3",
+                       "Chrm3"
+                       ),
+                 IMN=c("Nos1","Kcnab1",
+                       "Gfra1","Etv1",
+                       "Man1a","Airn",
+                       "Adcy2",
+                       "Col25a1",
+                       "Cmah","Creb5","Vip","Pde1a",
+                       "Ebf1","Gpc5","Mid1","Igfbp5",
+                       "Ppara",
+                       "Pcdh11x","Adcy8","Grp"
+                       ),
+                 IN=c("Npas3","Synpr","St18","Gal",
+                      "Nova1",
+                      "Cdh10","Kcnk13",
+                      "Neurod6","Moxd1","Sctr",
+                      "Piezo1","Vipr2","Adamts9","Sst","Kcnn2"
+                      ),
+                 IPAN=c("Calb2","Adcy1","Calcb","Nmu","Adgrg6","Pcdh10",
+                        "Ngfr","Galr1","Il7","Aff2",
+                        "Gpr149","Itgb6","Met","Itgbl1",
+                        
+                        "Cdh6","Cdh8",
+                        "Clstn2","Ano2","Ntrk3",
+                        "Cpne4","Vwc2l","Cdh9",
+                        "Car10","Dcc",
+                        "Scgn",
+                        "Vcan","Cck","Piezo2","Kcnh7",
+                        "Rerg","Bmpr1b","Skap1","Ntng1",
+                        "Tafa2","Nxph2"),
+                 CONTAM=c("Actl6b","Phox2b"),
+                 pDEGs=c("Grid2","Ide","Btaf1","Slc15a2","Ccser1","Hdac9","Rspo2","Grem2"))
+```
+
+
+```{r}
+check.markers.ss <- as.vector(unlist(markers.new.ss))
+check.markers.ss
+```
+
+
+```{r}
+length(check.markers.ss)
+sum(check.markers.ss %in% rownames(GEX.seur))
+```
+
+
+
+```{r fig.height=6.5, fig.width=16.5}
+
+pm.All_new.a <- DotPlot(GEX.seur, features = check.markers.ss, group.by = "sort_clusters",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 9.15))+ scale_y_discrete(limits=rev) + labs(title="All - sort_clusters")
+pm.All_new.a
+
+```
+
+
+```{r eval=FALSE, include=FALSE}
+ggsave("./composition/Baf53cre_Nb.integ.dotplot.a.pdf",
+       width = 20.5, height = 6.5,
+       plot = pm.All_new.a)
+```
+
+
+```{r fig.height=5.5, fig.width=16.5}
+
+pm.All_new.b <- DotPlot(GEX.seur, features = check.markers.ss, group.by = "intAnno1",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 9.15))+ scale_y_discrete(limits=rev) + labs(title="All - intAnno1")
+pm.All_new.b
+
+```
+
+```{r eval=FALSE, include=FALSE}
+ggsave("./composition/Baf53cre_Nb.integ.dotplot.b.pdf",
+       width = 20.5, height = 5.5,
+       plot = pm.All_new.b)
+```
+
+
+```{r fig.height=5.5, fig.width=16.5}
+
+pm.All_new.c <- DotPlot(GEX.seur, features = check.markers.ss, group.by = "intAnno2",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 9.15))+ scale_y_discrete(limits=rev) + labs(title="All - intAnno2")
+pm.All_new.c
+
+```
+
+```{r eval=FALSE, include=FALSE}
+ggsave("./composition/Baf53cre_Nb.integ.dotplot.c.pdf",
+       width = 20.5, height = 5.5,
+       plot = pm.All_new.c)
+```
+
+
+```{r fig.height=5.5, fig.width=16.5}
+#
+pm.All_new.c1 <- DotPlot(subset(GEX.seur, subset= cnt %in% c("Nb5d.PBS")), features = check.markers.ss, group.by = "intAnno2",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 9.15))+ scale_y_discrete(limits=rev) + labs(title="Nb5d.PBS - intAnno2")
+pm.All_new.c1
+
+```
+
+
+```{r fig.height=5.5, fig.width=16.5}
+#
+pm.All_new.c2 <- DotPlot(subset(GEX.seur, subset= cnt %in% c("Nb5d.INF")), features = check.markers.ss, group.by = "intAnno2",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 9.15))+ scale_y_discrete(limits=rev) + labs(title="Nb5d.INF - intAnno2")
+pm.All_new.c2
+
+```
+
+
+```{r fig.height=5.5, fig.width=16.5}
+#
+pm.All_new.c3 <- DotPlot(subset(GEX.seur, subset= cnt %in% c("Nb5d.CTL")), features = check.markers.ss, group.by = "intAnno2",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 9.15))+ scale_y_discrete(limits=rev) + labs(title="Nb5d.CTL - intAnno2")
+pm.All_new.c3
+
+```
+
+
+```{r fig.height=5.5, fig.width=16.5}
+#
+pm.All_new.c4 <- DotPlot(subset(GEX.seur, subset= cnt %in% c("Nb5d.CKO")), features = check.markers.ss, group.by = "intAnno2",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 9.15))+ scale_y_discrete(limits=rev) + labs(title="Nb5d.CKO - intAnno2")
+pm.All_new.c4
+
+```
+
+
+```{r}
+#saveRDS(GEX.seur, "./sn10x_WYS.sct_anno.s.rds")
+#GEX.seur <- readRDS("./sn10x_WYS.sct_anno.s.rds")
+```
+
+
+
+## cell composition                    
+
+
+```{r fig.width=10.8,fig.height=4.5}
+pumap.test0 <- DimPlot(GEX.seur, reduction = "umap", label = T, label.size = 2.75, group.by = "intAnno2") +
+  DimPlot(GEX.seur, reduction = "umap", label = F, group.by = "cnt", cols = color.cnt)
+pumap.test0
+```
+
+
+```{r fig.width=10.8,fig.height=4.5}
+pumap.test0s <- DimPlot(GEX.seur, reduction = "umap", label = T, label.size = 2.75, group.by = "intAnno1") +
+  DimPlot(GEX.seur, reduction = "umap", label = F, group.by = "cnt", cols = color.cnt)
+pumap.test0s
+```
+
+
+```{r eval=FALSE, include=FALSE}
+#
+ggsave("./composition/Baf53cre_Nb.integ.umap4a1.pdf",
+       width = 10.8, height = 4.5,
+       plot = pumap.test0s)
+#
+ggsave("./composition/Baf53cre_Nb.integ.umap4a2.pdf",
+       width = 10.8, height = 4.5,
+       plot = pumap.test0)
+```
+
+
+
+### PBS_INF             
+
+
+```{r}
+test1.seur <- subset(GEX.seur, subset= cnt %in% c("Nb5d.PBS","Nb5d.INF"))
+test1.seur
+```
+
+```{r}
+color.test1 <- color.cnt[1:2]
+```
+
+
+```{r fig.width=10.8,fig.height=4.5}
+pumap.test1 <- DimPlot(test1.seur, reduction = "umap", label = T, label.size = 2.75, group.by = "intAnno2") +
+  DimPlot(test1.seur, reduction = "umap", label = F, group.by = "cnt", cols = color.test1)
+pumap.test1
+```
+
+```{r fig.width=10.8,fig.height=4.5}
+pumap.test1s <- DimPlot(test1.seur, reduction = "umap", label = T, label.size = 2.75, group.by = "intAnno1") +
+  DimPlot(test1.seur, reduction = "umap", label = F, group.by = "cnt", cols = color.test1)
+pumap.test1s
+```
+
+
+```{r eval=FALSE, include=FALSE}
+#
+ggsave("./composition/Baf53cre_Nb.integ.umap4b1.pdf",
+       width = 10.8, height = 4.5,
+       plot = pumap.test1s)
+#
+ggsave("./composition/Baf53cre_Nb.integ.umap4b2.pdf",
+       width = 10.8, height = 4.5,
+       plot = pumap.test1)
+```
+
+
+#### heatmap               
+
+
+```{r fig.width=6.4, fig.height=4.5}
+cowplot::plot_grid(
+pheatmap::pheatmap(table(cnt=test1.seur$sample,
+      clusters=test1.seur$intAnno1)[c(5:8,1:4),],
+                   main = "Cell Count",
+                   gaps_row = c(4),
+      gaps_col = c(5,9,12),
+                   cluster_rows = F, cluster_cols = F, display_numbers = T, number_format = "%.0f", legend = F, silent = T)$gtable,
+
+pheatmap::pheatmap(100*rowRatio(table(cnt=test1.seur$sample,
+                                clusters=test1.seur$intAnno1)[c(5:8,1:4),] ),
+                   main = "Cell Ratio",
+                   gaps_row = c(4),
+      gaps_col = c(5,9,12),
+                   cluster_rows = F, cluster_cols = F, display_numbers = T, number_format = "%.1f", legend = F, silent =T)$gtable,
+ncol = 1)
+```
+
+```{r fig.width=6.4, fig.height=4.5}
+cowplot::plot_grid(
+pheatmap::pheatmap(table(cnt=test1.seur$sample,
+      clusters=test1.seur$intAnno2)[c(5:8,1:4),],
+                   main = "Cell Count",
+                   gaps_row = c(4),
+      gaps_col = c(5,9,12),
+                   cluster_rows = F, cluster_cols = F, display_numbers = T, number_format = "%.0f", legend = F, silent = T)$gtable,
+
+pheatmap::pheatmap(100*rowRatio(table(cnt=test1.seur$sample,
+                                clusters=test1.seur$intAnno2)[c(5:8,1:4),] ),
+                   main = "Cell Ratio",
+                   gaps_row = c(4),
+      gaps_col = c(5,9,12),
+                   cluster_rows = F, cluster_cols = F, display_numbers = T, number_format = "%.1f", legend = F, silent =T)$gtable,
+ncol = 1)
+```
+
+
+#### barplot                
+
+
+```{r}
+stat1_intAnno1 <- test1.seur@meta.data[,c("cnt","rep","intAnno1")]
+
+stat1_intAnno1.s <- stat1_intAnno1 %>%
+  group_by(cnt,rep,intAnno1) %>%
+  summarise(count=n()) %>%
+  mutate(prop= count/sum(count)) %>%
+  ungroup
+```
+
+```{r eval=FALSE, include=FALSE, paged.print=FALSE}
+write.csv(stat1_intAnno1.s %>% reshape2::recast(cnt + rep ~ intAnno1, measure.var = 4), 
+          "composition/Baf53cre_Nb.integ.PBS_INF.composition_intAnno1.stat_df.count.csv")
+write.csv(stat1_intAnno1.s %>% reshape2::recast(cnt + rep ~ intAnno1, measure.var = 5), 
+          "composition/Baf53cre_Nb.integ.PBS_INF.composition_intAnno1.stat_df.ratio.csv")
+```
+
+
+```{r  fig.height=3.5, fig.width=10.5}
+pcom1.intAnno1 <- stat1_intAnno1.s %>%
+  ggplot(aes(x = intAnno1, y = 100*prop, color=cnt)) +
+  geom_bar(stat="summary", fun="mean", position = position_dodge(0.75), width = 0.58, fill="white") +
+  theme_classic(base_size = 15) +
+  scale_color_manual(values = color.test1, name="") +
+  labs(title="Cell Composition of Nb5d.PBS_INF, intAnno1", y = "Proportion") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6)) +
+  
+  geom_point(aes(x=intAnno1, y = 100*prop, color= cnt),
+             position = position_dodge(0.75),
+             shape=16,alpha=0.75,size=2.15,
+             stroke=0.15, show.legend=F)
+
+pcom1.intAnno1
+```
+
+
+```{r eval=FALSE, include=FALSE}
+ggsave("./composition/Baf53cre_Nb.integ.PBS_INF.composition_intAnno1.barplot.pdf",
+       width = 10.5, height = 3.5,
+       plot = pcom1.intAnno1)
+```
+
+
+
+```{r}
+stat1_intAnno2 <- test1.seur@meta.data[,c("cnt","rep","intAnno2")]
+
+stat1_intAnno2.s <- stat1_intAnno2 %>%
+  group_by(cnt,rep,intAnno2) %>%
+  summarise(count=n()) %>%
+  mutate(prop= count/sum(count)) %>%
+  ungroup
+```
+
+```{r eval=FALSE, include=FALSE, paged.print=FALSE}
+write.csv(stat1_intAnno2.s %>% reshape2::recast(cnt + rep ~ intAnno2, measure.var = 4), 
+          "composition/Baf53cre_Nb.integ.PBS_INF.composition_intAnno2.stat_df.count.csv")
+write.csv(stat1_intAnno2.s %>% reshape2::recast(cnt + rep ~ intAnno2, measure.var = 5), 
+          "composition/Baf53cre_Nb.integ.PBS_INF.composition_intAnno2.stat_df.ratio.csv")
+```
+
+
+```{r  fig.height=3.5, fig.width=10.5}
+pcom1.intAnno2 <- stat1_intAnno2.s %>%
+  ggplot(aes(x = intAnno2, y = 100*prop, color=cnt)) +
+  geom_bar(stat="summary", fun="mean", position = position_dodge(0.75), width = 0.58, fill="white") +
+  theme_classic(base_size = 15) +
+  scale_color_manual(values = color.test1, name="") +
+  labs(title="Cell Composition of Nb5d.PBS_INF, intAnno2", y = "Proportion") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6)) +
+  
+  geom_point(aes(x=intAnno2, y = 100*prop, color= cnt),
+             position = position_dodge(0.75),
+             shape=16,alpha=0.75,size=2.15,
+             stroke=0.15, show.legend=F)
+
+pcom1.intAnno2
+```
+
+
+```{r eval=FALSE, include=FALSE}
+ggsave("./composition/Baf53cre_Nb.integ.PBS_INF.composition_intAnno2.barplot.pdf",
+       width = 10.5, height = 3.5,
+       plot = pcom1.intAnno2)
+```
+
+
+#### sig.test          
+
+glm.nb - anova.LRT           
+
+
+
+```{r message=FALSE, warning=FALSE}
+
+Sort.N <- c("Nb5d.PBS","Nb5d.INF")
+
+glm.nb_anova.1.intAnno1 <- list()
+
+for(x1 in 1:2){
+  for(x2 in 1:2){
+    if(x2>x1){
+      
+      stat1_intAnno1.s_N <- stat1_intAnno1.s %>% filter(cnt %in% c(Sort.N[x1],Sort.N[x2]))
+      
+      total.N <- stat1_intAnno1.s_N %>%
+        group_by(cnt, rep) %>%
+        summarise(total=sum(count)) %>% ungroup() %>% as.data.frame()
+      
+      rownames(total.N) <- paste0(as.character(total.N$cnt),
+                                  "_",
+                                  as.character(total.N$rep))
+      
+      stat1_intAnno1.s_N$total <- total.N[paste0(stat1_intAnno1.s_N$cnt,
+                                            "_",
+                                            stat1_intAnno1.s_N$rep),"total"]
+      
+      glm.nb_anova.1.intAnno1[[paste0(Sort.N[x1],"vs",Sort.N[x2])]] <- list()
+      
+      for(AA in levels(stat1_intAnno1.s_N$intAnno1)){
+        glm.nb_anova.1.intAnno1[[paste0(Sort.N[x1],"vs",Sort.N[x2])]][[AA]] <- tryCatch({
+          aaa <- stat1_intAnno1.s_N %>% filter(intAnno1==AA)
+          aaa.glmnb <- MASS::glm.nb(count ~ cnt + offset(log(total)), data = aaa, maxit=1000)
+          aaa.anova <- anova(aaa.glmnb, test = "LRT")
+          aaa.anova$'Pr(>Chi)'[2]
+        }, error=function(e){
+        
+          tryCatch({
+            aaa <- stat1_intAnno1.s_N %>% filter(intAnno1==AA)
+            aaa.glmnb <- MASS::glm.nb(count ~ cnt + offset(log(total)), data = aaa, maxit=100)
+            aaa.anova <- anova(aaa.glmnb, test = "LRT")
+            aaa.anova$'Pr(>Chi)'[2]
+          }, error=function(e){
+            
+            tryCatch({
+              aaa <- stat1_intAnno1.s_N %>% filter(intAnno1==AA)
+              aaa.glmnb <- MASS::glm.nb(count ~ cnt + offset(log(total)), data = aaa, maxit=10)
+              aaa.anova <- anova(aaa.glmnb, test = "LRT")
+              aaa.anova$'Pr(>Chi)'[2]
+            }, error = function(e){
+              NA
+            })     
+          })
+        })
+      }
+      glm.nb_anova.1.intAnno1[[paste0(Sort.N[x1],"vs",Sort.N[x2])]] <- unlist(glm.nb_anova.1.intAnno1[[paste0(Sort.N[x1],"vs",Sort.N[x2])]]) 
+    }
+  }
+}
+
+
+```
+
+
+```{r}
+glm.nb_anova.1.intAnno1_df <- t(data.frame(Reduce(function(x,y){rbind(x,y)},glm.nb_anova.1.intAnno1)))
+rownames(glm.nb_anova.1.intAnno1_df) <- names(glm.nb_anova.1.intAnno1)
+colnames(glm.nb_anova.1.intAnno1_df) <- gsub("X","C",colnames(glm.nb_anova.1.intAnno1_df))
+glm.nb_anova.1.intAnno1_df
+```
+
+```{r eval=FALSE, include=FALSE}
+write.csv(glm.nb_anova.1.intAnno1_df, "composition/Baf53cre_Nb.integ.PBS_INF.composition_intAnno1.glm.nb_anova.LRT.csv")
+```
+
+
+```{r}
+#options (scipen = 999)
+```
+
+
+```{r}
+round(glm.nb_anova.1.intAnno1_df,4)
+```
+
+
+
+```{r message=FALSE, warning=FALSE}
+
+Sort.N <- c("Nb5d.PBS","Nb5d.INF")
+
+glm.nb_anova.1.intAnno2 <- list()
+
+for(x1 in 1:2){
+  for(x2 in 1:2){
+    if(x2>x1){
+      
+      stat1_intAnno2.s_N <- stat1_intAnno2.s %>% filter(cnt %in% c(Sort.N[x1],Sort.N[x2]))
+      
+      total.N <- stat1_intAnno2.s_N %>%
+        group_by(cnt, rep) %>%
+        summarise(total=sum(count)) %>% ungroup() %>% as.data.frame()
+      
+      rownames(total.N) <- paste0(as.character(total.N$cnt),
+                                  "_",
+                                  as.character(total.N$rep))
+      
+      stat1_intAnno2.s_N$total <- total.N[paste0(stat1_intAnno2.s_N$cnt,
+                                            "_",
+                                            stat1_intAnno2.s_N$rep),"total"]
+      
+      glm.nb_anova.1.intAnno2[[paste0(Sort.N[x1],"vs",Sort.N[x2])]] <- list()
+      
+      for(AA in levels(stat1_intAnno2.s_N$intAnno2)){
+        glm.nb_anova.1.intAnno2[[paste0(Sort.N[x1],"vs",Sort.N[x2])]][[AA]] <- tryCatch({
+          aaa <- stat1_intAnno2.s_N %>% filter(intAnno2==AA)
+          aaa.glmnb <- MASS::glm.nb(count ~ cnt + offset(log(total)), data = aaa, maxit=1000)
+          aaa.anova <- anova(aaa.glmnb, test = "LRT")
+          aaa.anova$'Pr(>Chi)'[2]
+        }, error=function(e){
+        
+          tryCatch({
+            aaa <- stat1_intAnno2.s_N %>% filter(intAnno2==AA)
+            aaa.glmnb <- MASS::glm.nb(count ~ cnt + offset(log(total)), data = aaa, maxit=100)
+            aaa.anova <- anova(aaa.glmnb, test = "LRT")
+            aaa.anova$'Pr(>Chi)'[2]
+          }, error=function(e){
+            
+            tryCatch({
+              aaa <- stat1_intAnno2.s_N %>% filter(intAnno2==AA)
+              aaa.glmnb <- MASS::glm.nb(count ~ cnt + offset(log(total)), data = aaa, maxit=10)
+              aaa.anova <- anova(aaa.glmnb, test = "LRT")
+              aaa.anova$'Pr(>Chi)'[2]
+            }, error = function(e){
+              NA
+            })     
+          })
+        })
+      }
+      glm.nb_anova.1.intAnno2[[paste0(Sort.N[x1],"vs",Sort.N[x2])]] <- unlist(glm.nb_anova.1.intAnno2[[paste0(Sort.N[x1],"vs",Sort.N[x2])]]) 
+    }
+  }
+}
+
+
+```
+
+
+```{r}
+glm.nb_anova.1.intAnno2_df <- t(data.frame(Reduce(function(x,y){rbind(x,y)},glm.nb_anova.1.intAnno2)))
+rownames(glm.nb_anova.1.intAnno2_df) <- names(glm.nb_anova.1.intAnno2)
+colnames(glm.nb_anova.1.intAnno2_df) <- gsub("X","C",colnames(glm.nb_anova.1.intAnno2_df))
+glm.nb_anova.1.intAnno2_df
+```
+
+```{r eval=FALSE, include=FALSE}
+write.csv(glm.nb_anova.1.intAnno2_df, "composition/Baf53cre_Nb.integ.PBS_INF.composition_intAnno2.glm.nb_anova.LRT.csv")
+```
+
+```{r}
+#options (scipen = 999)
+```
+
+
+```{r}
+round(glm.nb_anova.1.intAnno2_df,4)
+```
+
+
+### CTL_CKO             
+
+
+```{r}
+test2.seur <- subset(GEX.seur, subset= cnt %in% c("Nb5d.CTL","Nb5d.CKO"))
+test2.seur
+```
+
+```{r}
+color.test2 <- color.cnt[3:4]
+```
+
+
+```{r fig.width=10.8,fig.height=4.5}
+pumap.test2 <- DimPlot(test2.seur, reduction = "umap", label = T, label.size = 2.75, group.by = "intAnno2") +
+  DimPlot(test2.seur, reduction = "umap", label = F, group.by = "cnt", cols = color.test2)
+pumap.test2
+```
+
+
+```{r fig.width=10.8,fig.height=4.5}
+pumap.test2s <- DimPlot(test2.seur, reduction = "umap", label = T, label.size = 2.75, group.by = "intAnno1") +
+  DimPlot(test2.seur, reduction = "umap", label = F, group.by = "cnt", cols = color.test2)
+pumap.test2s
+```
+
+```{r eval=FALSE, include=FALSE}
+#
+ggsave("./composition/Baf53cre_Nb.integ.umap4c1.pdf",
+       width = 10.8, height = 4.5,
+       plot = pumap.test2s)
+#
+ggsave("./composition/Baf53cre_Nb.integ.umap4c2.pdf",
+       width = 10.8, height = 4.5,
+       plot = pumap.test2)
+```
+
+
+#### heatmap               
+
+
+```{r fig.width=6.4, fig.height=4.5}
+cowplot::plot_grid(
+pheatmap::pheatmap(table(cnt=test2.seur$sample,
+      clusters=test2.seur$intAnno1)[c(4:7,1:3),],
+                   main = "Cell Count",
+                   gaps_row = c(4),
+      gaps_col = c(5,9,12),
+                   cluster_rows = F, cluster_cols = F, display_numbers = T, number_format = "%.0f", legend = F, silent = T)$gtable,
+
+pheatmap::pheatmap(100*rowRatio(table(cnt=test2.seur$sample,
+                                clusters=test2.seur$intAnno1)[c(4:7,1:3),] ),
+                   main = "Cell Ratio",
+                   gaps_row = c(4),
+      gaps_col = c(5,9,12),
+                   cluster_rows = F, cluster_cols = F, display_numbers = T, number_format = "%.1f", legend = F, silent =T)$gtable,
+ncol = 1)
+```
+
+```{r fig.width=6.4, fig.height=4.5}
+cowplot::plot_grid(
+pheatmap::pheatmap(table(cnt=test2.seur$sample,
+      clusters=test2.seur$intAnno2)[c(4:7,1:3),],
+                   main = "Cell Count",
+                   gaps_row = c(4),
+      gaps_col = c(5,9,12),
+                   cluster_rows = F, cluster_cols = F, display_numbers = T, number_format = "%.0f", legend = F, silent = T)$gtable,
+
+pheatmap::pheatmap(100*rowRatio(table(cnt=test2.seur$sample,
+                                clusters=test2.seur$intAnno2)[c(4:7,1:3),] ),
+                   main = "Cell Ratio",
+                   gaps_row = c(4),
+      gaps_col = c(5,9,12),
+                   cluster_rows = F, cluster_cols = F, display_numbers = T, number_format = "%.1f", legend = F, silent =T)$gtable,
+ncol = 1)
+```
+
+
+#### barplot                
+
+
+```{r}
+stat2_intAnno1 <- test2.seur@meta.data[,c("cnt","rep","intAnno1")]
+
+stat2_intAnno1.s <- stat2_intAnno1 %>%
+  group_by(cnt,rep,intAnno1) %>%
+  summarise(count=n()) %>%
+  mutate(prop= count/sum(count)) %>%
+  ungroup
+```
+
+```{r eval=FALSE, include=FALSE, paged.print=FALSE}
+write.csv(stat2_intAnno1.s %>% reshape2::recast(cnt + rep ~ intAnno1, measure.var = 4), 
+          "composition/Baf53cre_Nb.integ.CTL_CKO.composition_intAnno1.stat_df.count.csv")
+write.csv(stat2_intAnno1.s %>% reshape2::recast(cnt + rep ~ intAnno1, measure.var = 5), 
+          "composition/Baf53cre_Nb.integ.CTL_CKO.composition_intAnno1.stat_df.ratio.csv")
+```
+
+
+```{r  fig.height=3.5, fig.width=10.5}
+pcom2.intAnno1 <- stat2_intAnno1.s %>%
+  ggplot(aes(x = intAnno1, y = 100*prop, color=cnt)) +
+  geom_bar(stat="summary", fun="mean", position = position_dodge(0.75), width = 0.58, fill="white") +
+  theme_classic(base_size = 15) +
+  scale_color_manual(values = color.test2, name="") +
+  labs(title="Cell Composition of Nb5d.CTL_CKO, intAnno1", y = "Proportion") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6)) +
+  
+  geom_point(aes(x=intAnno1, y = 100*prop, color= cnt),
+             position = position_dodge(0.75),
+             shape=16,alpha=0.75,size=2.15,
+             stroke=0.15, show.legend=F)
+
+pcom2.intAnno1
+```
+
+
+```{r eval=FALSE, include=FALSE}
+ggsave("./composition/Baf53cre_Nb.integ.CTL_CKO.composition_intAnno1.barplot.pdf",
+       width = 10.5, height = 3.5,
+       plot = pcom2.intAnno1)
+```
+
+
+```{r}
+stat2_intAnno2 <- test2.seur@meta.data[,c("cnt","rep","intAnno2")]
+
+stat2_intAnno2.s <- stat2_intAnno2 %>%
+  group_by(cnt,rep,intAnno2) %>%
+  summarise(count=n()) %>%
+  mutate(prop= count/sum(count)) %>%
+  ungroup
+```
+
+```{r eval=FALSE, include=FALSE, paged.print=FALSE}
+write.csv(stat2_intAnno2.s %>% reshape2::recast(cnt + rep ~ intAnno2, measure.var = 4), 
+          "composition/Baf53cre_Nb.integ.CTL_CKO.composition_intAnno2.stat_df.count.csv")
+write.csv(stat2_intAnno2.s %>% reshape2::recast(cnt + rep ~ intAnno2, measure.var = 5), 
+          "composition/Baf53cre_Nb.integ.CTL_CKO.composition_intAnno2.stat_df.ratio.csv")
+```
+
+
+```{r  fig.height=3.5, fig.width=10.5}
+pcom2.intAnno2 <- stat2_intAnno2.s %>%
+  ggplot(aes(x = intAnno2, y = 100*prop, color=cnt)) +
+  geom_bar(stat="summary", fun="mean", position = position_dodge(0.75), width = 0.58, fill="white") +
+  theme_classic(base_size = 15) +
+  scale_color_manual(values = color.test2, name="") +
+  labs(title="Cell Composition of Nb5d.CTL_CKO, intAnno2", y = "Proportion") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6)) +
+  
+  geom_point(aes(x=intAnno2, y = 100*prop, color= cnt),
+             position = position_dodge(0.75),
+             shape=16,alpha=0.75,size=2.15,
+             stroke=0.15, show.legend=F)
+
+pcom2.intAnno2
+```
+
+
+```{r eval=FALSE, include=FALSE}
+ggsave("./composition/Baf53cre_Nb.integ.CTL_CKO.composition_intAnno2.barplot.pdf",
+       width = 10.5, height = 3.5,
+       plot = pcom2.intAnno2)
+```
+
+
+#### sig.test          
+
+glm.nb - anova.LRT           
+
+
+
+```{r message=FALSE, warning=FALSE}
+
+Sort.N <- c("Nb5d.CTL","Nb5d.CKO")
+
+glm.nb_anova.2.intAnno1 <- list()
+
+for(x1 in 1:2){
+  for(x2 in 1:2){
+    if(x2>x1){
+      
+      stat2_intAnno1.s_N <- stat2_intAnno1.s %>% filter(cnt %in% c(Sort.N[x1],Sort.N[x2]))
+      
+      total.N <- stat2_intAnno1.s_N %>%
+        group_by(cnt, rep) %>%
+        summarise(total=sum(count)) %>% ungroup() %>% as.data.frame()
+      
+      rownames(total.N) <- paste0(as.character(total.N$cnt),
+                                  "_",
+                                  as.character(total.N$rep))
+      
+      stat2_intAnno1.s_N$total <- total.N[paste0(stat2_intAnno1.s_N$cnt,
+                                            "_",
+                                            stat2_intAnno1.s_N$rep),"total"]
+      
+      glm.nb_anova.2.intAnno1[[paste0(Sort.N[x1],"vs",Sort.N[x2])]] <- list()
+      
+      for(AA in levels(stat2_intAnno1.s_N$intAnno1)){
+        glm.nb_anova.2.intAnno1[[paste0(Sort.N[x1],"vs",Sort.N[x2])]][[AA]] <- tryCatch({
+          aaa <- stat2_intAnno1.s_N %>% filter(intAnno1==AA)
+          aaa.glmnb <- MASS::glm.nb(count ~ cnt + offset(log(total)), data = aaa, maxit=1000)
+          aaa.anova <- anova(aaa.glmnb, test = "LRT")
+          aaa.anova$'Pr(>Chi)'[2]
+        }, error=function(e){
+        
+          tryCatch({
+            aaa <- stat2_intAnno1.s_N %>% filter(intAnno1==AA)
+            aaa.glmnb <- MASS::glm.nb(count ~ cnt + offset(log(total)), data = aaa, maxit=100)
+            aaa.anova <- anova(aaa.glmnb, test = "LRT")
+            aaa.anova$'Pr(>Chi)'[2]
+          }, error=function(e){
+            
+            tryCatch({
+              aaa <- stat2_intAnno1.s_N %>% filter(intAnno1==AA)
+              aaa.glmnb <- MASS::glm.nb(count ~ cnt + offset(log(total)), data = aaa, maxit=10)
+              aaa.anova <- anova(aaa.glmnb, test = "LRT")
+              aaa.anova$'Pr(>Chi)'[2]
+            }, error = function(e){
+              NA
+            })     
+          })
+        })
+      }
+      glm.nb_anova.2.intAnno1[[paste0(Sort.N[x1],"vs",Sort.N[x2])]] <- unlist(glm.nb_anova.2.intAnno1[[paste0(Sort.N[x1],"vs",Sort.N[x2])]]) 
+    }
+  }
+}
+
+
+```
+
+
+```{r}
+glm.nb_anova.2.intAnno1_df <- t(data.frame(Reduce(function(x,y){rbind(x,y)},glm.nb_anova.2.intAnno1)))
+rownames(glm.nb_anova.2.intAnno1_df) <- names(glm.nb_anova.2.intAnno1)
+colnames(glm.nb_anova.2.intAnno1_df) <- gsub("X","C",colnames(glm.nb_anova.2.intAnno1_df))
+glm.nb_anova.2.intAnno1_df
+```
+
+```{r eval=FALSE, include=FALSE}
+write.csv(glm.nb_anova.2.intAnno1_df, "composition/Baf53cre_Nb.integ.CTL_CKO.composition_intAnno1.glm.nb_anova.LRT.csv")
+```
+
+```{r}
+#options (scipen = 999)
+```
+
+
+```{r}
+round(glm.nb_anova.2.intAnno1_df,4)
+```
+
+
+
+```{r message=FALSE, warning=FALSE}
+
+Sort.N <- c("Nb5d.CTL","Nb5d.CKO")
+
+glm.nb_anova.2.intAnno2 <- list()
+
+for(x1 in 1:2){
+  for(x2 in 1:2){
+    if(x2>x1){
+      
+      stat2_intAnno2.s_N <- stat2_intAnno2.s %>% filter(cnt %in% c(Sort.N[x1],Sort.N[x2]))
+      
+      total.N <- stat2_intAnno2.s_N %>%
+        group_by(cnt, rep) %>%
+        summarise(total=sum(count)) %>% ungroup() %>% as.data.frame()
+      
+      rownames(total.N) <- paste0(as.character(total.N$cnt),
+                                  "_",
+                                  as.character(total.N$rep))
+      
+      stat2_intAnno2.s_N$total <- total.N[paste0(stat2_intAnno2.s_N$cnt,
+                                            "_",
+                                            stat2_intAnno2.s_N$rep),"total"]
+      
+      glm.nb_anova.2.intAnno2[[paste0(Sort.N[x1],"vs",Sort.N[x2])]] <- list()
+      
+      for(AA in levels(stat2_intAnno2.s_N$intAnno2)){
+        glm.nb_anova.2.intAnno2[[paste0(Sort.N[x1],"vs",Sort.N[x2])]][[AA]] <- tryCatch({
+          aaa <- stat2_intAnno2.s_N %>% filter(intAnno2==AA)
+          aaa.glmnb <- MASS::glm.nb(count ~ cnt + offset(log(total)), data = aaa, maxit=1000)
+          aaa.anova <- anova(aaa.glmnb, test = "LRT")
+          aaa.anova$'Pr(>Chi)'[2]
+        }, error=function(e){
+        
+          tryCatch({
+            aaa <- stat2_intAnno2.s_N %>% filter(intAnno2==AA)
+            aaa.glmnb <- MASS::glm.nb(count ~ cnt + offset(log(total)), data = aaa, maxit=100)
+            aaa.anova <- anova(aaa.glmnb, test = "LRT")
+            aaa.anova$'Pr(>Chi)'[2]
+          }, error=function(e){
+            
+            tryCatch({
+              aaa <- stat2_intAnno2.s_N %>% filter(intAnno2==AA)
+              aaa.glmnb <- MASS::glm.nb(count ~ cnt + offset(log(total)), data = aaa, maxit=10)
+              aaa.anova <- anova(aaa.glmnb, test = "LRT")
+              aaa.anova$'Pr(>Chi)'[2]
+            }, error = function(e){
+              NA
+            })     
+          })
+        })
+      }
+      glm.nb_anova.2.intAnno2[[paste0(Sort.N[x1],"vs",Sort.N[x2])]] <- unlist(glm.nb_anova.2.intAnno2[[paste0(Sort.N[x1],"vs",Sort.N[x2])]]) 
+    }
+  }
+}
+
+
+```
+
+
+```{r}
+glm.nb_anova.2.intAnno2_df <- t(data.frame(Reduce(function(x,y){rbind(x,y)},glm.nb_anova.2.intAnno2)))
+rownames(glm.nb_anova.2.intAnno2_df) <- names(glm.nb_anova.2.intAnno2)
+colnames(glm.nb_anova.2.intAnno2_df) <- gsub("X","C",colnames(glm.nb_anova.2.intAnno2_df))
+glm.nb_anova.2.intAnno2_df
+```
+
+```{r eval=FALSE, include=FALSE}
+write.csv(glm.nb_anova.2.intAnno2_df, "composition/Baf53cre_Nb.integ.CTL_CKO.composition_intAnno2.glm.nb_anova.LRT.csv")
+```
+
+```{r}
+#options (scipen = 999)
+```
+
+
+```{r}
+round(glm.nb_anova.2.intAnno2_df,4)
+```
+
+
+## all markers               
+
+
+### intAnno1            
+
+
+```{r message=FALSE, warning=FALSE, paged.print=TRUE}
+# find markers for every cluster compared to all remaining cells
+Idents(GEX.seur) <- "intAnno1"
+
+GEX.seur <- PrepSCTFindMarkers(GEX.seur, assay = "SCT")
+```
+
+
+```{r eval=FALSE, include=FALSE}
+#saveRDS(GEX.seur, "./sn10x_WYS.sct_anno.s.rds")
+#GEX.seur <- readRDS("./sn10x_WYS.sct_anno.s.rds")
+```
+
+
+
+```{r message=FALSE, warning=FALSE, paged.print=TRUE}
+#GEX.markers.pre <- FindAllMarkers(GEX.seur, only.pos = TRUE, min.pct = 0.01,
+#                                  assay = "SCT",
+#                                  test.use = "MAST",
+#                                  logfc.threshold = 0.1)
+GEX.markers.pre <- read.table("Baf53cre_Nb.markers.SCT_intAnno1.202402.csv", header = TRUE, sep = ",")
+#GEX.markers.pre %>% group_by(cluster) %>% top_n(n = 8, wt = avg_log2FC)
+```
+                
+             
+```{r eval=FALSE, include=FALSE}
+write.table(GEX.markers.pre, 
+            "Baf53cre_Nb.markers.SCT_intAnno1.202402.csv", 
+            col.names = TRUE,
+            row.names = FALSE,
+            quote = F,
+            sep = ",")
+```
+
+
+
+```{r}
+GEX.markers.pre$cluster <- factor(as.character(GEX.markers.pre$cluster),
+                          levels = levels(GEX.seur$intAnno1))
+
+
+markers.pre_t60 <- (GEX.markers.pre %>% group_by(cluster) %>% 
+                  filter(pct.1>0.05 & gene %in% grep("Rps|Rpl|mt-|Hsp",gene,invert = T,value = T)) %>%
+                   top_n(n = 60, wt = avg_log2FC) %>%
+                   ungroup() %>%
+  arrange(desc(avg_log2FC*pct.1),gene) %>%
+                             distinct(gene, .keep_all = TRUE) %>%
+                             arrange(cluster,p_val_adj))$gene
+
+markers.pre_t120 <- (GEX.markers.pre %>% group_by(cluster) %>% 
+                  filter(pct.1>0.05 & gene %in% grep("Rps|Rpl|mt-|Hsp",gene,invert = T,value = T)) %>%
+                   top_n(n = 120, wt = avg_log2FC) %>%
+                   ungroup() %>%
+  arrange(desc(avg_log2FC*pct.1),gene) %>%
+                             distinct(gene, .keep_all = TRUE) %>%
+                             arrange(cluster,p_val_adj))$gene
+```
+
+
+```{r}
+ttt = 471
+ttt/60
+ttt/64
+ttt/65
+```    
+
+```{r fig.height=11.4, fig.width=7.6, message=FALSE, warning=FALSE}
+
+pp.t60 <- list()
+
+for(i in 1:8){
+pp.t60[[i]] <- DotPlot(GEX.seur, features = rev(markers.pre_t60[(60*i-59):(60*i)]))  + coord_flip() + 
+           theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+}
+
+pp.t60
+```  
+
+
+
+```{r}
+ttt = 840
+ttt/60
+ttt/64
+ttt/65
+```    
+
+
+```{r fig.height=11.4, fig.width=7.6, message=FALSE, warning=FALSE}
+
+pp.t120 <- list()
+
+for(i in 1:14){
+pp.t120[[i]] <- DotPlot(GEX.seur, features = rev(markers.pre_t120[(60*i-59):(60*i)]))  + coord_flip() + 
+           theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+}
+
+pp.t120
+``` 
+
+
+
+
+### intAnno2            
+
+
+```{r message=FALSE, warning=FALSE, paged.print=TRUE}
+# find markers for every cluster compared to all remaining cells
+Idents(GEX.seur) <- "intAnno2"
+
+#GEX.seur <- PrepSCTFindMarkers(GEX.seur, assay = "SCT")
+```
+
+
+```{r eval=FALSE, include=FALSE}
+#saveRDS(GEX.seur, "./sn10x_WYS.sct_anno.s.rds")
+#GEX.seur <- readRDS("./sn10x_WYS.sct_anno.s.rds")
+```
+
+
+
+```{r message=FALSE, warning=FALSE, paged.print=TRUE}
+#GEX.markers.pre <- FindAllMarkers(GEX.seur, only.pos = TRUE, min.pct = 0.05,
+#                                  assay = "SCT",
+#                                  test.use = "MAST",
+#                                  logfc.threshold = 0.25)
+GEX.markers.pre <- read.table("Baf53cre_Nb.markers.SCT_intAnno2.202402.csv", header = TRUE, sep = ",")
+#GEX.markers.pre %>% group_by(cluster) %>% top_n(n = 8, wt = avg_log2FC)
+```
+                
+             
+```{r eval=FALSE, include=FALSE}
+write.table(GEX.markers.pre, 
+            "Baf53cre_Nb.markers.SCT_intAnno2.202402.csv", 
+            col.names = TRUE,
+            row.names = FALSE,
+            quote = F,
+            sep = ",")
+```
+
+
+
+```{r}
+GEX.markers.pre$cluster <- factor(as.character(GEX.markers.pre$cluster),
+                          levels = levels(GEX.seur$intAnno2))
+
+
+markers.pre_t60 <- (GEX.markers.pre %>% group_by(cluster) %>% 
+                  filter(pct.1>0.05 & gene %in% grep("Rps|Rpl|mt-|Hsp",gene,invert = T,value = T)) %>%
+                   top_n(n = 60, wt = avg_log2FC) %>%
+                   ungroup() %>%
+  arrange(desc(avg_log2FC*pct.1),gene) %>%
+                             distinct(gene, .keep_all = TRUE) %>%
+                             arrange(cluster,p_val_adj))$gene
+
+markers.pre_t120 <- (GEX.markers.pre %>% group_by(cluster) %>% 
+                  filter(pct.1>0.05 & gene %in% grep("Rps|Rpl|mt-|Hsp",gene,invert = T,value = T)) %>%
+                   top_n(n = 120, wt = avg_log2FC) %>%
+                   ungroup() %>%
+  arrange(desc(avg_log2FC*pct.1),gene) %>%
+                             distinct(gene, .keep_all = TRUE) %>%
+                             arrange(cluster,p_val_adj))$gene
+```
+
+
+```{r}
+ttt = 485
+ttt/60
+ttt/64
+ttt/65
+```    
+
+```{r fig.height=11.4, fig.width=7.6, message=FALSE, warning=FALSE}
+
+pp.t60 <- list()
+
+for(i in 1:8){
+pp.t60[[i]] <- DotPlot(GEX.seur, features = rev(markers.pre_t60[(64*i-63):(64*i)]))  + coord_flip() + 
+           theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+}
+
+pp.t60
+```  
+
+
+
+```{r}
+ttt = 875
+ttt/60
+ttt/64
+ttt/65
+```    
+
+
+```{r fig.height=11.4, fig.width=7.6, message=FALSE, warning=FALSE}
+
+pp.t120 <- list()
+
+for(i in 1:14){
+pp.t120[[i]] <- DotPlot(GEX.seur, features = rev(markers.pre_t120[(64*i-63):(64*i)]))  + coord_flip() + 
+           theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+}
+
+pp.t120
+``` 
+
+
+
+## DEGs                    
+
+
+```{r paged.print=FALSE}
+head(GEX.seur@meta.data)
+```
+
+
+```{r}
+Idents(GEX.seur) <- "cnt"
+
+#GEX.seur <- PrepSCTFindMarkers(GEX.seur, assay = "SCT")
+```
+
+
+```{r}
+neur.clusters <- grep("EMN|IMN|IN|IPAN",levels(GEX.seur$intAnno2), value = T)
+neur.clusters
+```
+
+```{r}
+#
+all_new <- neur.clusters
+all_new
+```
+
+```{r}
+#
+list_new <- list()
+list_new[["All"]] <- all_new
+
+list_new[["EMNs"]] <- grep("EMN",all_new,value = T)
+list_new[["IMNs"]] <- grep("IMN",all_new,value = T)
+
+list_new[["IPAN1"]] <- grep("IPAN1",all_new,value = T)
+list_new[["IPAN2"]] <- grep("IPAN2",all_new,value = T)
+
+#list_new[["INs"]] <- grep("IN",all_new,value = T)
+#list_new[["IPANs"]] <- grep("IPAN",all_new,value = T)
+
+for(NN in all_new){
+  list_new[[NN]] <- NN
+}
+
+names_new <- names(list_new)
+list_new
+```
+
+```{r}
+names_new
+```
+
+### PBS_INF            
+
+
+```{r}
+test1.seur <- subset(GEX.seur, subset= cnt %in% c("Nb5d.PBS","Nb5d.INF"))
+test1.seur
+```
+
+#### run              
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+test1.DEGs_new <- list()
+
+for(nn in names_new){
+  test1.DEGs_new[[nn]] <- FindAllMarkers(subset(test1.seur, subset = intAnno2 %in% list_new[[nn]]),
+                                       assay = "RNA",
+                                       only.pos = T,
+                                       min.pct = 0.05,
+                                       logfc.threshold = 0.1,
+                                       test.use = "MAST")
+}
+
+```
+
+
+```{r}
+#test1.DEGs_new
+```
+
+
+```{r}
+# save DEGs' table
+df_test1.DEGs_new <- data.frame()
+for(nn in names_new){
+  df_test1.DEGs_new <- rbind(df_test1.DEGs_new, data.frame(test1.DEGs_new[[nn]],intAnno2=nn))
+}
+
+#write.csv(df_test1.DEGs_new, "Baf53cre_Nb.DEGs.PBSvsINF.intAnno2.csv")
+```
+
+
+
+#### stat          
+
+
+```{r}
+df_test1.DEGs_new$intAnno2 <- factor(as.character(df_test1.DEGs_new$intAnno2),
+                                     levels = names_new)
+```
+
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+cut.padj = 0.05
+cut.log2FC = 0.1   
+  
+cut.pct1 = 0.05
+
+stat_test1a.DEGs_new <- df_test1.DEGs_new %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(intAnno2,cluster) %>%
+  summarise(up.DEGs = n()) %>% as.data.frame()
+stat_test1a.DEGs_new
+```
+
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE, fig.width=9.5, fig.height=4}
+df_test1.DEGs_new %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(intAnno2,cluster) %>%
+  summarise(up.DEGs = n()) %>% as.data.frame() %>%
+  ggplot(aes(x=intAnno2, y=up.DEGs, color = cluster)) +
+  geom_bar(stat="summary", fun="mean", position = position_dodge(0.75), width = 0.58, fill="white") +
+  geom_text(aes(label = up.DEGs),vjust=-0.21, show.legend = F, position = position_dodge(0.75) ) +
+  theme_classic(base_size = 15) +
+  scale_color_manual(values = color.test1, name="") +
+  labs(title=paste0("up.DEGs stat, pct.1>",cut.pct1,", padj<",cut.padj,", |log2FC|>",cut.log2FC), y = "Count") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6),
+        title =element_text(size=12, face='bold'))
+```
+
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+cut.padj = 0.05
+cut.log2FC = 0.2   
+  
+cut.pct1 = 0.05
+
+stat_test1b.DEGs_new <- df_test1.DEGs_new %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(intAnno2,cluster) %>%
+  summarise(up.DEGs = n()) %>% as.data.frame()
+stat_test1b.DEGs_new
+```
+
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE, fig.width=9.5, fig.height=4}
+df_test1.DEGs_new %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(intAnno2,cluster) %>%
+  summarise(up.DEGs = n()) %>% as.data.frame() %>%
+  ggplot(aes(x=intAnno2, y=up.DEGs, color = cluster)) +
+  geom_bar(stat="summary", fun="mean", position = position_dodge(0.75), width = 0.58, fill="white") +
+  geom_text(aes(label = up.DEGs),vjust=-0.21, show.legend = F, position = position_dodge(0.75) ) +
+  theme_classic(base_size = 15) +
+  scale_color_manual(values = color.test1, name="") +
+  labs(title=paste0("up.DEGs stat, pct.1>",cut.pct1,", padj<",cut.padj,", |log2FC|>",cut.log2FC), y = "Count") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6),
+        title =element_text(size=12, face='bold'))
+```
+
+
+```{r eval=FALSE, include=FALSE}
+write.csv(stat_test1a.DEGs_new,"DEGs/stat_DEGs.PBS_INF.pct0.05_padj0.05_log2FC0.1.csv")
+write.csv(stat_test1b.DEGs_new,"DEGs/stat_DEGs.PBS_INF.pct0.05_padj0.05_log2FC0.2.csv")
+```
+
+
+
+#### plot           
+
+
+```{r}
+#save(test1.DEGs_new, file = "test1.DEGs_new.Rdata")
+```
+
+
+```{r}
+pp_test1.DEGs.new <- lapply(list_new, function(x){NA})
+```
+
+
+```{r}
+#
+test1.DEGs_new.combine <- test1.DEGs_new
+test1.DEGs_new.combine <- lapply(test1.DEGs_new.combine, function(x){
+  x[x$cluster=="Nb5d.PBS","avg_log2FC"] <- -x[x$cluster=="Nb5d.PBS","avg_log2FC"]
+  x
+})
+
+```
+
+
+#### All           
+
+
+```{r fig.width=15, fig.height=7.5}
+pp_test1.DEGs.new$All <- test1.DEGs_new.combine$All %>%
+  mutate(label=ifelse(((p_val_adj < 1e-3 & avg_log2FC<0) | (p_val_adj < 1e-3 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        #!grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+                        !grepl("^Rps|^Rpl",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"Nb5d.PBS",ifelse(p_val_adj<0.05 & avg_log2FC>0,"Nb5d.INF","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("Nb5d.PBS"=color.test1[1],
+                               "Nb5d.INF"=color.test1[2],
+                               "None"="grey")) +
+  theme_classic() + labs(title="All Nb5d.PBS vs Nb5d.INF") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")
+pp_test1.DEGs.new$All
+```
+
+
+#### EMNs           
+
+
+```{r fig.width=15, fig.height=7.5}
+pp_test1.DEGs.new$EMNs <- test1.DEGs_new.combine$EMNs %>%
+  mutate(label=ifelse(((p_val_adj < 5e-2 & avg_log2FC<0) | (p_val_adj < 5e-2 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        #!grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+                        !grepl("^Rps|^Rpl",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"Nb5d.PBS",ifelse(p_val_adj<0.05 & avg_log2FC>0,"Nb5d.INF","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("Nb5d.PBS"=color.test1[1],
+                               "Nb5d.INF"=color.test1[2],
+                               "None"="grey")) +
+  theme_classic() + labs(title="EMNs Nb5d.PBS vs Nb5d.INF") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")
+pp_test1.DEGs.new$EMNs
+```
+
+
+#### EMN1           
+
+
+```{r fig.width=15, fig.height=7.5}
+pp_test1.DEGs.new$EMN1 <- test1.DEGs_new.combine$EMN1 %>%
+  mutate(label=ifelse(((p_val_adj < 5e-2 & avg_log2FC<0) | (p_val_adj < 5e-2 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        #!grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+                        !grepl("^Rps|^Rpl",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"Nb5d.PBS",ifelse(p_val_adj<0.05 & avg_log2FC>0,"Nb5d.INF","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("Nb5d.PBS"=color.test1[1],
+                               "Nb5d.INF"=color.test1[2],
+                               "None"="grey")) +
+  theme_classic() + labs(title="EMN1 Nb5d.PBS vs Nb5d.INF") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")
+pp_test1.DEGs.new$EMN1
+```
+
+
+#### EMN2           
+
+
+```{r fig.width=15, fig.height=7.5}
+pp_test1.DEGs.new$EMN2 <- test1.DEGs_new.combine$EMN2 %>%
+  mutate(label=ifelse(((p_val_adj < 5e-2 & avg_log2FC<0) | (p_val_adj < 5e-2 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        #!grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+                        !grepl("^Rps|^Rpl",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"Nb5d.PBS",ifelse(p_val_adj<0.05 & avg_log2FC>0,"Nb5d.INF","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("Nb5d.PBS"=color.test1[1],
+                               "Nb5d.INF"=color.test1[2],
+                               "None"="grey")) +
+  theme_classic() + labs(title="EMN2 Nb5d.PBS vs Nb5d.INF") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")
+pp_test1.DEGs.new$EMN2
+```
+
+
+#### EMN3           
+
+
+```{r fig.width=15, fig.height=7.5}
+pp_test1.DEGs.new$EMN3 <- test1.DEGs_new.combine$EMN3 %>%
+  mutate(label=ifelse(((p_val_adj < 5e-2 & avg_log2FC<0) | (p_val_adj < 5e-2 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        #!grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+                        !grepl("^Rps|^Rpl",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"Nb5d.PBS",ifelse(p_val_adj<0.05 & avg_log2FC>0,"Nb5d.INF","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("Nb5d.PBS"=color.test1[1],
+                               "Nb5d.INF"=color.test1[2],
+                               "None"="grey")) +
+  theme_classic() + labs(title="EMN3 Nb5d.PBS vs Nb5d.INF") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")
+pp_test1.DEGs.new$EMN3
+```
+
+
+#### EMN4           
+
+
+```{r fig.width=15, fig.height=7.5}
+pp_test1.DEGs.new$EMN4 <- test1.DEGs_new.combine$EMN4 %>%
+  mutate(label=ifelse(((p_val_adj < 5e-2 & avg_log2FC<0) | (p_val_adj < 5e-2 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        #!grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+                        !grepl("^Rps|^Rpl",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"Nb5d.PBS",ifelse(p_val_adj<0.05 & avg_log2FC>0,"Nb5d.INF","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("Nb5d.PBS"=color.test1[1],
+                               "Nb5d.INF"=color.test1[2],
+                               "None"="grey")) +
+  theme_classic() + labs(title="EMN4 Nb5d.PBS vs Nb5d.INF") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")
+pp_test1.DEGs.new$EMN4
+```
+
+
+#### IMNs           
+
+
+```{r fig.width=15, fig.height=7.5}
+pp_test1.DEGs.new$IMNs <- test1.DEGs_new.combine$IMNs %>%
+  mutate(label=ifelse(((p_val_adj < 5e-2 & avg_log2FC<0) | (p_val_adj < 5e-2 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        #!grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+                        !grepl("^Rps|^Rpl",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"Nb5d.PBS",ifelse(p_val_adj<0.05 & avg_log2FC>0,"Nb5d.INF","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("Nb5d.PBS"=color.test1[1],
+                               "Nb5d.INF"=color.test1[2],
+                               "None"="grey")) +
+  theme_classic() + labs(title="IMNs Nb5d.PBS vs Nb5d.INF") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")
+pp_test1.DEGs.new$IMNs
+```
+
+
+#### IMN1           
+
+
+```{r fig.width=15, fig.height=7.5}
+pp_test1.DEGs.new$IMN1 <- test1.DEGs_new.combine$IMN1 %>%
+  mutate(label=ifelse(((p_val_adj < 5e-2 & avg_log2FC<0) | (p_val_adj < 5e-2 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        #!grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+                        !grepl("^Rps|^Rpl",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"Nb5d.PBS",ifelse(p_val_adj<0.05 & avg_log2FC>0,"Nb5d.INF","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("Nb5d.PBS"=color.test1[1],
+                               "Nb5d.INF"=color.test1[2],
+                               "None"="grey")) +
+  theme_classic() + labs(title="IMN1 Nb5d.PBS vs Nb5d.INF") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")
+pp_test1.DEGs.new$IMN1
+```
+
+
+#### IMN2           
+
+
+```{r fig.width=15, fig.height=7.5}
+pp_test1.DEGs.new$IMN2 <- test1.DEGs_new.combine$IMN2 %>%
+  mutate(label=ifelse(((p_val_adj < 5e-2 & avg_log2FC<0) | (p_val_adj < 5e-2 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        #!grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+                        !grepl("^Rps|^Rpl",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"Nb5d.PBS",ifelse(p_val_adj<0.05 & avg_log2FC>0,"Nb5d.INF","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("Nb5d.PBS"=color.test1[1],
+                               "Nb5d.INF"=color.test1[2],
+                               "None"="grey")) +
+  theme_classic() + labs(title="IMN2 Nb5d.PBS vs Nb5d.INF") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")
+pp_test1.DEGs.new$IMN2
+```
+
+
+#### IMN3           
+
+
+```{r fig.width=15, fig.height=7.5}
+pp_test1.DEGs.new$IMN3 <- test1.DEGs_new.combine$IMN3 %>%
+  mutate(label=ifelse(((p_val_adj < 5e-2 & avg_log2FC<0) | (p_val_adj < 5e-2 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        #!grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+                        !grepl("^Rps|^Rpl",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"Nb5d.PBS",ifelse(p_val_adj<0.05 & avg_log2FC>0,"Nb5d.INF","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("Nb5d.PBS"=color.test1[1],
+                               "Nb5d.INF"=color.test1[2],
+                               "None"="grey")) +
+  theme_classic() + labs(title="IMN3 Nb5d.PBS vs Nb5d.INF") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")
+pp_test1.DEGs.new$IMN3
+```
+
+
+#### IMN4           
+
+
+```{r fig.width=15, fig.height=7.5}
+pp_test1.DEGs.new$IMN4 <- test1.DEGs_new.combine$IMN4 %>%
+  mutate(label=ifelse(((p_val_adj < 5e-2 & avg_log2FC<0) | (p_val_adj < 5e-2 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        #!grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+                        !grepl("^Rps|^Rpl",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"Nb5d.PBS",ifelse(p_val_adj<0.05 & avg_log2FC>0,"Nb5d.INF","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("Nb5d.PBS"=color.test1[1],
+                               "Nb5d.INF"=color.test1[2],
+                               "None"="grey")) +
+  theme_classic() + labs(title="IMN4 Nb5d.PBS vs Nb5d.INF") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")
+pp_test1.DEGs.new$IMN4
+```
+
+
+#### IN1           
+
+
+```{r fig.width=15, fig.height=7.5}
+pp_test1.DEGs.new$IN1 <- test1.DEGs_new.combine$IN1 %>%
+  mutate(label=ifelse(((p_val_adj < 5e-2 & avg_log2FC<0) | (p_val_adj < 5e-2 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        #!grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+                        !grepl("^Rps|^Rpl",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"Nb5d.PBS",ifelse(p_val_adj<0.05 & avg_log2FC>0,"Nb5d.INF","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("Nb5d.PBS"=color.test1[1],
+                               "Nb5d.INF"=color.test1[2],
+                               "None"="grey")) +
+  theme_classic() + labs(title="IN1 Nb5d.PBS vs Nb5d.INF") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")
+pp_test1.DEGs.new$IN1
+```
+
+
+#### IPAN1           
+
+
+```{r fig.width=15, fig.height=7.5}
+pp_test1.DEGs.new$IPAN1 <- test1.DEGs_new.combine$IPAN1 %>%
+  mutate(label=ifelse(((p_val_adj < 1e-3 & avg_log2FC<0) | (p_val_adj < 1e-3 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        #!grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+                        !grepl("^Rps|^Rpl",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"Nb5d.PBS",ifelse(p_val_adj<0.05 & avg_log2FC>0,"Nb5d.INF","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("Nb5d.PBS"=color.test1[1],
+                               "Nb5d.INF"=color.test1[2],
+                               "None"="grey")) +
+  theme_classic() + labs(title="IPAN1 Nb5d.PBS vs Nb5d.INF") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")
+pp_test1.DEGs.new$IPAN1
+```
+
+
+#### IPAN1.1           
+
+
+```{r fig.width=15, fig.height=7.5}
+pp_test1.DEGs.new$IPAN1.1 <- test1.DEGs_new.combine$IPAN1.1 %>%
+  mutate(label=ifelse(((p_val_adj < 5e-2 & avg_log2FC<0) | (p_val_adj < 5e-2 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        #!grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+                        !grepl("^Rps|^Rpl",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"Nb5d.PBS",ifelse(p_val_adj<0.05 & avg_log2FC>0,"Nb5d.INF","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("Nb5d.PBS"=color.test1[1],
+                               "Nb5d.INF"=color.test1[2],
+                               "None"="grey")) +
+  theme_classic() + labs(title="IPAN1.1 Nb5d.PBS vs Nb5d.INF") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")
+pp_test1.DEGs.new$IPAN1.1
+```
+
+
+#### IPAN1.2           
+
+
+```{r fig.width=15, fig.height=7.5}
+pp_test1.DEGs.new$IPAN1.2 <- test1.DEGs_new.combine$IPAN1.2 %>%
+  mutate(label=ifelse(((p_val_adj < 5e-2 & avg_log2FC<0) | (p_val_adj < 5e-2 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        #!grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+                        !grepl("^Rps|^Rpl",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"Nb5d.PBS",ifelse(p_val_adj<0.05 & avg_log2FC>0,"Nb5d.INF","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("Nb5d.PBS"=color.test1[1],
+                               "Nb5d.INF"=color.test1[2],
+                               "None"="grey")) +
+  theme_classic() + labs(title="IPAN1.2 Nb5d.PBS vs Nb5d.INF") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")
+pp_test1.DEGs.new$IPAN1.2
+```
+
+
+#### IPAN2           
+
+
+```{r fig.width=15, fig.height=7.5}
+pp_test1.DEGs.new$IPAN2 <- test1.DEGs_new.combine$IPAN2 %>%
+  mutate(label=ifelse(((p_val_adj < 5e-2 & avg_log2FC<0) | (p_val_adj < 5e-2 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        #!grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+                        !grepl("^Rps|^Rpl",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"Nb5d.PBS",ifelse(p_val_adj<0.05 & avg_log2FC>0,"Nb5d.INF","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("Nb5d.PBS"=color.test1[1],
+                               "Nb5d.INF"=color.test1[2],
+                               "None"="grey")) +
+  theme_classic() + labs(title="IPAN2 Nb5d.PBS vs Nb5d.INF") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")
+pp_test1.DEGs.new$IPAN2
+```
+
+
+#### IPAN2.1           
+
+
+```{r fig.width=15, fig.height=7.5}
+pp_test1.DEGs.new$IPAN2.1 <- test1.DEGs_new.combine$IPAN2.1 %>%
+  mutate(label=ifelse(((p_val_adj < 5e-2 & avg_log2FC<0) | (p_val_adj < 5e-2 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        #!grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+                        !grepl("^Rps|^Rpl",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"Nb5d.PBS",ifelse(p_val_adj<0.05 & avg_log2FC>0,"Nb5d.INF","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("Nb5d.PBS"=color.test1[1],
+                               "Nb5d.INF"=color.test1[2],
+                               "None"="grey")) +
+  theme_classic() + labs(title="IPAN2.1 Nb5d.PBS vs Nb5d.INF") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")
+pp_test1.DEGs.new$IPAN2.1
+```
+
+
+#### IPAN2.2           
+
+
+```{r fig.width=15, fig.height=7.5}
+pp_test1.DEGs.new$IPAN2.2 <- test1.DEGs_new.combine$IPAN2.2 %>%
+  mutate(label=ifelse(((p_val_adj < 5e-2 & avg_log2FC<0) | (p_val_adj < 5e-2 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        #!grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+                        !grepl("^Rps|^Rpl",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"Nb5d.PBS",ifelse(p_val_adj<0.05 & avg_log2FC>0,"Nb5d.INF","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("Nb5d.PBS"=color.test1[1],
+                               "Nb5d.INF"=color.test1[2],
+                               "None"="grey")) +
+  theme_classic() + labs(title="IPAN2.2 Nb5d.PBS vs Nb5d.INF") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")
+pp_test1.DEGs.new$IPAN2.2
+```
+
+
+#### IPAN4           
+
+
+```{r fig.width=15, fig.height=7.5}
+pp_test1.DEGs.new$IPAN4 <- test1.DEGs_new.combine$IPAN4 %>%
+  mutate(label=ifelse(((p_val_adj < 5e-2 & avg_log2FC<0) | (p_val_adj < 5e-2 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        #!grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+                        !grepl("^Rps|^Rpl",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"Nb5d.PBS",ifelse(p_val_adj<0.05 & avg_log2FC>0,"Nb5d.INF","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("Nb5d.PBS"=color.test1[1],
+                               "Nb5d.INF"=color.test1[2],
+                               "None"="grey")) +
+  theme_classic() + labs(title="IPAN4 Nb5d.PBS vs Nb5d.INF") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")
+pp_test1.DEGs.new$IPAN4
+```
+
+
+```{r}
+neur.ol <- c("All","EMNs","EMN1","EMN2","IMNs","IMN1","IPAN1","IPAN1.1","IPAN1.2","IPAN2","IPAN2.1")
+neur.ol
+```
+
+```{r eval=FALSE, include=FALSE}
+for(XX in neur.ol){
+  
+  ggsave(paste0("./DEGs/PBSvsINF/volcano.PBSvsINF.",XX,".pdf"),
+         width = 15,height = 7.5,
+         plot = pp_test1.DEGs.new[[XX]])
+  
+}
+```
+
+
+
+### CTL_CKO              
+
+
+```{r}
+test2.seur <- subset(GEX.seur, subset= cnt %in% c("Nb5d.CTL","Nb5d.CKO"))
+test2.seur
+```
+
+
+#### run              
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+test2.DEGs_new <- list()
+
+for(nn in names_new){
+  test2.DEGs_new[[nn]] <- FindAllMarkers(subset(test2.seur, subset = intAnno2 %in% list_new[[nn]]),
+                                       assay = "RNA",
+                                       only.pos = T,
+                                       min.pct = 0.05,
+                                       logfc.threshold = 0.1,
+                                       test.use = "MAST")
+}
+
+```
+
+
+```{r}
+#test2.DEGs_new
+```
+
+
+```{r}
+# save DEGs' table
+df_test2.DEGs_new <- data.frame()
+for(nn in names_new){
+  df_test2.DEGs_new <- rbind(df_test2.DEGs_new, data.frame(test2.DEGs_new[[nn]],intAnno2=nn))
+}
+
+#write.csv(df_test2.DEGs_new, "Baf53cre_Nb.DEGs.CTLvsCKO.intAnno2.csv")
+```
+
+
+
+#### stat          
+
+```{r}
+df_test2.DEGs_new$intAnno2 <- factor(as.character(df_test2.DEGs_new$intAnno2),
+                                     levels = names_new)
+```
+
+
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+cut.padj = 0.05
+cut.log2FC = 0.1   
+  
+cut.pct1 = 0.05
+
+stat_test2a.DEGs_new <- df_test2.DEGs_new %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(intAnno2,cluster) %>%
+  summarise(up.DEGs = n()) %>% as.data.frame()
+stat_test2a.DEGs_new
+```
+
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE, fig.width=9.5, fig.height=4}
+df_test2.DEGs_new %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(intAnno2,cluster) %>%
+  summarise(up.DEGs = n()) %>% as.data.frame() %>%
+  ggplot(aes(x=intAnno2, y=up.DEGs, color = cluster)) +
+  geom_bar(stat="summary", fun="mean", position = position_dodge(0.75), width = 0.58, fill="white") +
+  geom_text(aes(label = up.DEGs),vjust=-0.21, show.legend = F, position = position_dodge(0.75) ) +
+  theme_classic(base_size = 15) +
+  scale_color_manual(values = color.test2, name="") +
+  labs(title=paste0("up.DEGs stat, pct.1>",cut.pct1,", padj<",cut.padj,", |log2FC|>",cut.log2FC), y = "Count") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6),
+        title =element_text(size=12, face='bold'))
+```
+
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+cut.padj = 0.05
+cut.log2FC = 0.2   
+  
+cut.pct1 = 0.05
+
+stat_test2b.DEGs_new <- df_test2.DEGs_new %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(intAnno2,cluster) %>%
+  summarise(up.DEGs = n()) %>% as.data.frame()
+stat_test2b.DEGs_new
+```
+
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE, fig.width=9.5, fig.height=4}
+df_test2.DEGs_new %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(intAnno2,cluster) %>%
+  summarise(up.DEGs = n()) %>% as.data.frame() %>%
+  ggplot(aes(x=intAnno2, y=up.DEGs, color = cluster)) +
+  geom_bar(stat="summary", fun="mean", position = position_dodge(0.75), width = 0.58, fill="white") +
+  geom_text(aes(label = up.DEGs),vjust=-0.21, show.legend = F, position = position_dodge(0.75) ) +
+  theme_classic(base_size = 15) +
+  scale_color_manual(values = color.test2, name="") +
+  labs(title=paste0("up.DEGs stat, pct.1>",cut.pct1,", padj<",cut.padj,", |log2FC|>",cut.log2FC), y = "Count") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6),
+        title =element_text(size=12, face='bold'))
+```
+
+
+```{r eval=FALSE, include=FALSE}
+write.csv(stat_test2a.DEGs_new,"DEGs/stat_DEGs.CTL_CKO.pct0.05_padj0.05_log2FC0.1.csv")
+write.csv(stat_test2b.DEGs_new,"DEGs/stat_DEGs.CTL_CKO.pct0.05_padj0.05_log2FC0.2.csv")
+```
+
+
+
+#### plot           
+
+```{r}
+#save(test2.DEGs_new, file = "test2.DEGs_new.Rdata")
+```
+
+```{r}
+pp_test2.DEGs.new <- lapply(list_new, function(x){NA})
+```
+
+
+```{r}
+#
+test2.DEGs_new.combine <- test2.DEGs_new
+test2.DEGs_new.combine <- lapply(test2.DEGs_new.combine, function(x){
+  x[x$cluster=="Nb5d.CTL","avg_log2FC"] <- -x[x$cluster=="Nb5d.CTL","avg_log2FC"]
+  x
+})
+
+```
+
+
+#### All           
+
+
+```{r fig.width=15, fig.height=7.5}
+pp_test2.DEGs.new$All <- test2.DEGs_new.combine$All %>%
+  mutate(label=ifelse(((p_val_adj < 1e-5 & avg_log2FC<0) | (p_val_adj < 1e-2 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        #!grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+                        !grepl("^Rps|^Rpl",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"Nb5d.CTL",ifelse(p_val_adj<0.05 & avg_log2FC>0,"Nb5d.CKO","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("Nb5d.CTL"=color.test2[1],
+                               "Nb5d.CKO"=color.test2[2],
+                               "None"="grey")) +
+  theme_classic() + labs(title="All Nb5d.CTL vs Nb5d.CKO") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")
+pp_test2.DEGs.new$All
+```
+
+
+#### EMNs           
+
+
+```{r fig.width=15, fig.height=7.5}
+pp_test2.DEGs.new$EMNs <- test2.DEGs_new.combine$EMNs %>%
+  mutate(label=ifelse(((p_val_adj < 5e-2 & avg_log2FC<0) | (p_val_adj < 5e-2 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        #!grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+                        !grepl("^Rps|^Rpl",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"Nb5d.CTL",ifelse(p_val_adj<0.05 & avg_log2FC>0,"Nb5d.CKO","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("Nb5d.CTL"=color.test2[1],
+                               "Nb5d.CKO"=color.test2[2],
+                               "None"="grey")) +
+  theme_classic() + labs(title="EMNs Nb5d.CTL vs Nb5d.CKO") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")
+pp_test2.DEGs.new$EMNs
+```
+
+
+#### EMN1           
+
+
+```{r fig.width=15, fig.height=7.5}
+pp_test2.DEGs.new$EMN1 <- test2.DEGs_new.combine$EMN1 %>%
+  mutate(label=ifelse(((p_val_adj < 5e-2 & avg_log2FC<0) | (p_val_adj < 5e-2 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        #!grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+                        !grepl("^Rps|^Rpl",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"Nb5d.CTL",ifelse(p_val_adj<0.05 & avg_log2FC>0,"Nb5d.CKO","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("Nb5d.CTL"=color.test2[1],
+                               "Nb5d.CKO"=color.test2[2],
+                               "None"="grey")) +
+  theme_classic() + labs(title="EMN1 Nb5d.CTL vs Nb5d.CKO") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")
+pp_test2.DEGs.new$EMN1
+```
+
+
+#### EMN2           
+
+
+```{r fig.width=15, fig.height=7.5}
+pp_test2.DEGs.new$EMN2 <- test2.DEGs_new.combine$EMN2 %>%
+  mutate(label=ifelse(((p_val_adj < 5e-2 & avg_log2FC<0) | (p_val_adj < 5e-2 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        #!grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+                        !grepl("^Rps|^Rpl",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"Nb5d.CTL",ifelse(p_val_adj<0.05 & avg_log2FC>0,"Nb5d.CKO","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("Nb5d.CTL"=color.test2[1],
+                               "Nb5d.CKO"=color.test2[2],
+                               "None"="grey")) +
+  theme_classic() + labs(title="EMN2 Nb5d.CTL vs Nb5d.CKO") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")
+pp_test2.DEGs.new$EMN2
+```
+
+
+#### EMN3           
+
+
+```{r fig.width=15, fig.height=7.5}
+pp_test2.DEGs.new$EMN3 <- test2.DEGs_new.combine$EMN3 %>%
+  mutate(label=ifelse(((p_val_adj < 5e-2 & avg_log2FC<0) | (p_val_adj < 5e-2 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        #!grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+                        !grepl("^Rps|^Rpl",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"Nb5d.CTL",ifelse(p_val_adj<0.05 & avg_log2FC>0,"Nb5d.CKO","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("Nb5d.CTL"=color.test2[1],
+                               "Nb5d.CKO"=color.test2[2],
+                               "None"="grey")) +
+  theme_classic() + labs(title="EMN3 Nb5d.CTL vs Nb5d.CKO") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")
+pp_test2.DEGs.new$EMN3
+```
+
+
+
+#### IMNs           
+
+
+```{r fig.width=15, fig.height=7.5}
+pp_test2.DEGs.new$IMNs <- test2.DEGs_new.combine$IMNs %>%
+  mutate(label=ifelse(((p_val_adj < 5e-2 & avg_log2FC<0) | (p_val_adj < 5e-2 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        #!grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+                        !grepl("^Rps|^Rpl",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"Nb5d.CTL",ifelse(p_val_adj<0.05 & avg_log2FC>0,"Nb5d.CKO","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("Nb5d.CTL"=color.test2[1],
+                               "Nb5d.CKO"=color.test2[2],
+                               "None"="grey")) +
+  theme_classic() + labs(title="IMNs Nb5d.CTL vs Nb5d.CKO") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")
+pp_test2.DEGs.new$IMNs
+```
+
+
+#### IMN1           
+
+
+```{r fig.width=15, fig.height=7.5}
+pp_test2.DEGs.new$IMN1 <- test2.DEGs_new.combine$IMN1 %>%
+  mutate(label=ifelse(((p_val_adj < 5e-2 & avg_log2FC<0) | (p_val_adj < 5e-2 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        #!grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+                        !grepl("^Rps|^Rpl",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"Nb5d.CTL",ifelse(p_val_adj<0.05 & avg_log2FC>0,"Nb5d.CKO","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("Nb5d.CTL"=color.test2[1],
+                               "Nb5d.CKO"=color.test2[2],
+                               "None"="grey")) +
+  theme_classic() + labs(title="IMN1 Nb5d.CTL vs Nb5d.CKO") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")
+pp_test2.DEGs.new$IMN1
+```
+
+
+
+#### IN1           
+
+
+```{r fig.width=15, fig.height=7.5}
+pp_test2.DEGs.new$IN1 <- test2.DEGs_new.combine$IN1 %>%
+  mutate(label=ifelse(((p_val_adj < 5e-2 & avg_log2FC<0) | (p_val_adj < 5e-2 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        #!grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+                        !grepl("^Rps|^Rpl",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"Nb5d.CTL",ifelse(p_val_adj<0.05 & avg_log2FC>0,"Nb5d.CKO","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("Nb5d.CTL"=color.test2[1],
+                               "Nb5d.CKO"=color.test2[2],
+                               "None"="grey")) +
+  theme_classic() + labs(title="IN1 Nb5d.CTL vs Nb5d.CKO") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")
+pp_test2.DEGs.new$IN1
+```
+
+
+#### IPAN1           
+
+
+```{r fig.width=15, fig.height=7.5}
+pp_test2.DEGs.new$IPAN1 <- test2.DEGs_new.combine$IPAN1 %>%
+  mutate(label=ifelse(((p_val_adj < 1e-3 & avg_log2FC<0) | (p_val_adj < 1e-2 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        #!grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+                        !grepl("^Rps|^Rpl",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"Nb5d.CTL",ifelse(p_val_adj<0.05 & avg_log2FC>0,"Nb5d.CKO","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("Nb5d.CTL"=color.test2[1],
+                               "Nb5d.CKO"=color.test2[2],
+                               "None"="grey")) +
+  theme_classic() + labs(title="IPAN1 Nb5d.CTL vs Nb5d.CKO") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")
+pp_test2.DEGs.new$IPAN1
+```
+
+
+#### IPAN1.1           
+
+
+```{r fig.width=15, fig.height=7.5}
+pp_test2.DEGs.new$IPAN1.1 <- test2.DEGs_new.combine$IPAN1.1 %>%
+  mutate(label=ifelse(((p_val_adj < 5e-2 & avg_log2FC<0) | (p_val_adj < 5e-2 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        #!grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+                        !grepl("^Rps|^Rpl",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"Nb5d.CTL",ifelse(p_val_adj<0.05 & avg_log2FC>0,"Nb5d.CKO","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("Nb5d.CTL"=color.test2[1],
+                               "Nb5d.CKO"=color.test2[2],
+                               "None"="grey")) +
+  theme_classic() + labs(title="IPAN1.1 Nb5d.CTL vs Nb5d.CKO") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")
+pp_test2.DEGs.new$IPAN1.1
+```
+
+
+#### IPAN1.2           
+
+
+```{r fig.width=15, fig.height=7.5}
+pp_test2.DEGs.new$IPAN1.2 <- test2.DEGs_new.combine$IPAN1.2 %>%
+  mutate(label=ifelse(((p_val_adj < 5e-2 & avg_log2FC<0) | (p_val_adj < 5e-2 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        #!grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+                        !grepl("^Rps|^Rpl",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"Nb5d.CTL",ifelse(p_val_adj<0.05 & avg_log2FC>0,"Nb5d.CKO","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("Nb5d.CTL"=color.test2[1],
+                               "Nb5d.CKO"=color.test2[2],
+                               "None"="grey")) +
+  theme_classic() + labs(title="IPAN1.2 Nb5d.CTL vs Nb5d.CKO") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")
+pp_test2.DEGs.new$IPAN1.2
+```
+
+
+#### IPAN2           
+
+
+```{r fig.width=15, fig.height=7.5}
+pp_test2.DEGs.new$IPAN2 <- test2.DEGs_new.combine$IPAN2 %>%
+  mutate(label=ifelse(((p_val_adj < 5e-2 & avg_log2FC<0) | (p_val_adj < 5e-2 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        #!grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+                        !grepl("^Rps|^Rpl",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"Nb5d.CTL",ifelse(p_val_adj<0.05 & avg_log2FC>0,"Nb5d.CKO","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("Nb5d.CTL"=color.test2[1],
+                               "Nb5d.CKO"=color.test2[2],
+                               "None"="grey")) +
+  theme_classic() + labs(title="IPAN2 Nb5d.CTL vs Nb5d.CKO") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")
+pp_test2.DEGs.new$IPAN2
+```
+
+
+#### IPAN2.1           
+
+
+```{r fig.width=15, fig.height=7.5}
+pp_test2.DEGs.new$IPAN2.1 <- test2.DEGs_new.combine$IPAN2.1 %>%
+  mutate(label=ifelse(((p_val_adj < 5e-2 & avg_log2FC<0) | (p_val_adj < 5e-2 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        #!grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+                        !grepl("^Rps|^Rpl",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"Nb5d.CTL",ifelse(p_val_adj<0.05 & avg_log2FC>0,"Nb5d.CKO","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("Nb5d.CTL"=color.test2[1],
+                               "Nb5d.CKO"=color.test2[2],
+                               "None"="grey")) +
+  theme_classic() + labs(title="IPAN2.1 Nb5d.CTL vs Nb5d.CKO") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")
+pp_test2.DEGs.new$IPAN2.1
+```
+
+
+#### IPAN2.2           
+
+
+```{r fig.width=15, fig.height=7.5}
+pp_test2.DEGs.new$IPAN2.2 <- test2.DEGs_new.combine$IPAN2.2 %>%
+  mutate(label=ifelse(((p_val_adj < 5e-2 & avg_log2FC<0) | (p_val_adj < 5e-2 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        #!grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+                        !grepl("^Rps|^Rpl",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"Nb5d.CTL",ifelse(p_val_adj<0.05 & avg_log2FC>0,"Nb5d.CKO","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("Nb5d.CTL"=color.test2[1],
+                               "Nb5d.CKO"=color.test2[2],
+                               "None"="grey")) +
+  theme_classic() + labs(title="IPAN2.2 Nb5d.CTL vs Nb5d.CKO") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")
+pp_test2.DEGs.new$IPAN2.2
+```
+
+
+```{r eval=FALSE, include=FALSE}
+for(XX in neur.ol){
+  
+  ggsave(paste0("./DEGs/CTLvsCKO/volcano.CTLvsCKO.",XX,".pdf"),
+         width = 15,height = 7.5,
+         plot = pp_test2.DEGs.new[[XX]])
+  
+}
+```
+
+
+
+## signature scores                 
+           
+              
+### top list             
+
+use top120-built top markers                     
+
+
+```{r}
+load("I:/Shared_win/projects/20231220_10x_SZJ/analysis_plus/top.markerlist.RData")
+```
+
+
+```{r paged.print=FALSE}
+data.frame(row.names = "topmarkers",lapply(top.list,length))
+```
+
+```{r eval=FALSE, include=FALSE}
+for(NN in names(top.list)){
+  
+  write.table(top.list[[NN]], paste0("markers/sig.markers/sig.",NN,".txt"), row.names = F, col.names = F, quote = F)
+}
+```
+
+
+
+```{r}
+neur.clusters
+```
+
+
+```{r}
+for(nn in neur.clusters){
+  
+  GEX.seur <- add_geneset_score(obj = GEX.seur,
+                                Assay = "SCT",
+                                geneset = top.list[[nn]],
+                                setname = paste0("score.",nn))
+  
+}
+```
+
+
+```{r fig.height=10, fig.width=15.5, message=FALSE, warning=FALSE}
+mapal <- colorRampPalette(RColorBrewer::brewer.pal(4,"Spectral"))(120)
+FeaturePlot(GEX.seur, features = paste0("score.",neur.clusters), ncol = 5) &
+  scale_color_gradientn(colors = rev(mapal))
+```
+
+
+```{r fig.height=10, fig.width=15.5, message=FALSE, warning=FALSE}
+mapal <- colorRampPalette(RColorBrewer::brewer.pal(4,"Spectral"))(120)
+FeaturePlot(GEX.seur, features = paste0("score.",neur.clusters), ncol = 5, raster = T, pt.size = 3.5) &
+  scale_color_gradientn(colors = rev(mapal))
+```
+
+
+
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+ggsave("./markers/sig.markers/sig.markers.pdf",
+       width = 15.5, height = 10,
+FeaturePlot(GEX.seur, features = paste0("score.",neur.clusters), ncol = 5, raster = T, pt.size = 3.5) &
+  scale_color_gradientn(colors = rev(mapal)))
+```
+
+
+
+```{r}
+vln.list <- list()
+
+vln.list <- lapply(neur.clusters, function(x){
+  
+  
+  VlnPlot(GEX.seur, features = paste0("score.",x), group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & #labs(title = "") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.25,0.65)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(0.4, 0.4, 0.45),
+                               size=2.75
+                               )
+  
+  
+})
+
+names(vln.list) <- neur.clusters
+
+```
+
+
+
+```{r fig.height=9, fig.width=25, message=FALSE, warning=FALSE}
+cowplot::plot_grid(
+  plotlist = vln.list ,
+  ncol = 9)
+```
+                              
+                   
+              
+### overlapped DEGs                      
+                
+               
+#### process             
+               
+           
+                   
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+cut.padj = 0.05
+cut.log2FC = 0.1   
+  
+cut.pct1 = 0.05
+
+stat_test1a.DEGs_new <- df_test1.DEGs_new %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(intAnno2,cluster) %>%
+  summarise(up.DEGs = n()) %>% as.data.frame()
+#stat_test1a.DEGs_new
+```
+
+
+
+```{r}
+head(df_test1.DEGs_new)
+```
+
+
+```{r}
+#              
+cut.padj = 0.05
+cut.log2FC = 0.1   
+                
+cut.pct1 = 0.05
+
+
+#
+test1_up.list <- lapply(neur.ol,function(x){NA})
+names(test1_up.list) <- neur.ol
+
+
+for(NN in neur.ol){
+  
+  test1_up.list[[NN]] <- list()
+  test1_up.list[[NN]][["Nb5d.PBS"]] <- (df_test1.DEGs_new %>% filter(intAnno2 == NN &
+                                                                    cluster == "Nb5d.PBS" &
+                                                                    p_val_adj < cut.padj & 
+                                                                    abs(avg_log2FC) > cut.log2FC & 
+                                                                    pct.1 > cut.pct1))$gene
+  test1_up.list[[NN]][["Nb5d.INF"]] <- (df_test1.DEGs_new %>% filter(intAnno2 == NN &
+                                                                    cluster == "Nb5d.INF" &
+                                                                    p_val_adj < cut.padj & 
+                                                                    abs(avg_log2FC) > cut.log2FC & 
+                                                                    pct.1 > cut.pct1))$gene
+}
+
+#test1_up.list
+
+#
+test2_up.list <- lapply(neur.ol,function(x){NA})
+names(test2_up.list) <- neur.ol
+
+
+for(NN in neur.ol){
+  
+  test2_up.list[[NN]] <- list()
+  test2_up.list[[NN]][["Nb5d.CTL"]] <- (df_test2.DEGs_new %>% filter(intAnno2 == NN &
+                                                                    cluster == "Nb5d.CTL" &
+                                                                    p_val_adj < cut.padj & 
+                                                                    abs(avg_log2FC) > cut.log2FC & 
+                                                                    pct.1 > cut.pct1))$gene
+  test2_up.list[[NN]][["Nb5d.CKO"]] <- (df_test2.DEGs_new %>% filter(intAnno2 == NN &
+                                                                    cluster == "Nb5d.CKO" &
+                                                                    p_val_adj < cut.padj & 
+                                                                    abs(avg_log2FC) > cut.log2FC & 
+                                                                    pct.1 > cut.pct1))$gene
+}
+
+#test2_up.list
+```
+
+
+```{r}
+library(UpSetR)
+```
+
+
+
+```{r fig.width=9, fig.height=5}
+#
+xx=neur.ol[1]
+  upset(fromList(c(test1_up.list[[xx]],
+                   test2_up.list[[xx]])),
+      order.by = 'freq', nsets = 6, point.size=3.5, line.size =1, text.scale = 2)  
+  grid::grid.text(xx,x = 0.65, y=0.95, gp=grid::gpar(fontsize=20))
+
+#
+xx=neur.ol[2]
+  upset(fromList(c(test1_up.list[[xx]],
+                   test2_up.list[[xx]])),
+      order.by = 'freq', nsets = 6, point.size=3.5, line.size =1, text.scale = 2)  
+  grid::grid.text(xx,x = 0.65, y=0.95, gp=grid::gpar(fontsize=20))
+#
+xx=neur.ol[3]
+  upset(fromList(c(test1_up.list[[xx]],
+                   test2_up.list[[xx]])),
+      order.by = 'freq', nsets = 6, point.size=3.5, line.size =1, text.scale = 2)  
+  grid::grid.text(xx,x = 0.65, y=0.95, gp=grid::gpar(fontsize=20))
+#
+xx=neur.ol[4]
+  upset(fromList(c(test1_up.list[[xx]],
+                   test2_up.list[[xx]])),
+      order.by = 'freq', nsets = 6, point.size=3.5, line.size =1, text.scale = 2)  
+  grid::grid.text(xx,x = 0.65, y=0.95, gp=grid::gpar(fontsize=20))
+#
+xx=neur.ol[5]
+  upset(fromList(c(test1_up.list[[xx]],
+                   test2_up.list[[xx]])),
+      order.by = 'freq', nsets = 6, point.size=3.5, line.size =1, text.scale = 2)  
+  grid::grid.text(xx,x = 0.65, y=0.95, gp=grid::gpar(fontsize=20))
+#
+xx=neur.ol[6]
+  upset(fromList(c(test1_up.list[[xx]],
+                   test2_up.list[[xx]])),
+      order.by = 'freq', nsets = 6, point.size=3.5, line.size =1, text.scale = 2)  
+  grid::grid.text(xx,x = 0.65, y=0.95, gp=grid::gpar(fontsize=20))
+#
+xx=neur.ol[7]
+  upset(fromList(c(test1_up.list[[xx]],
+                   test2_up.list[[xx]])),
+      order.by = 'freq', nsets = 6, point.size=3.5, line.size =1, text.scale = 2)  
+  grid::grid.text(xx,x = 0.65, y=0.95, gp=grid::gpar(fontsize=20))
+#
+xx=neur.ol[8]
+  upset(fromList(c(test1_up.list[[xx]],
+                   test2_up.list[[xx]])),
+      order.by = 'freq', nsets = 6, point.size=3.5, line.size =1, text.scale = 2)  
+  grid::grid.text(xx,x = 0.65, y=0.95, gp=grid::gpar(fontsize=20))
+#
+xx=neur.ol[9]
+  upset(fromList(c(test1_up.list[[xx]],
+                   test2_up.list[[xx]])),
+      order.by = 'freq', nsets = 6, point.size=3.5, line.size =1, text.scale = 2)  
+  grid::grid.text(xx,x = 0.65, y=0.95, gp=grid::gpar(fontsize=20))
+#
+xx=neur.ol[10]
+  upset(fromList(c(test1_up.list[[xx]],
+                   test2_up.list[[xx]])),
+      order.by = 'freq', nsets = 6, point.size=3.5, line.size =1, text.scale = 2)  
+  grid::grid.text(xx,x = 0.65, y=0.95, gp=grid::gpar(fontsize=20))
+#
+xx=neur.ol[11]
+  upset(fromList(c(test1_up.list[[xx]],
+                   test2_up.list[[xx]])),
+      order.by = 'freq', nsets = 6, point.size=3.5, line.size =1, text.scale = 2)  
+  grid::grid.text(xx,x = 0.65, y=0.95, gp=grid::gpar(fontsize=20))
+```
+
+#### save       
+
+```{r eval=FALSE, include=FALSE}
+
+# manually choose [1]->[11], while the code is not working in a parallel way
+xx=neur.ol[11]
+  
+  pdf(paste0("./DEGs/overlap/",xx,".pdf"),
+      width = 9, height = 5)
+  upset(fromList(c(test1_up.list[[xx]],
+                   test2_up.list[[xx]])),
+      order.by = 'freq', nsets = 6, point.size=3.5, line.size =1, text.scale = 2)
+  
+  grid::grid.text(xx,x = 0.65, y=0.95, gp=grid::gpar(fontsize=20))
+  dev.off()
+  
+
+```
+
+
+```{r}
+test3_up.list <- list()
+test3_up.list[["INFxCTL"]] <- list()
+test3_up.list[["PBSxCKO"]] <- list()
+for(NN in c("All","IPAN1","IPAN1.1","IPAN1.2","IPAN2","IPAN2.1")){
+  
+  test3_up.list[["INFxCTL"]][[NN]] <- intersect(test1_up.list[[NN]][["Nb5d.INF"]],test2_up.list[[NN]][["Nb5d.CTL"]])
+  test3_up.list[["PBSxCKO"]][[NN]] <- intersect(test1_up.list[[NN]][["Nb5d.PBS"]],test2_up.list[[NN]][["Nb5d.CKO"]])
+}
+test3_up.list
+```
+
+
+
+```{r eval=FALSE, include=FALSE}
+## save DEG list 
+# clusters to consider
+write.table(neur.ol, "./DEGs/overlap/DEG.list/clusters.txt", row.names = F, col.names = F, quote = F)
+write.table(neur.ol[c(1,7:11)], "./DEGs/overlap/overlap.list/clusters.txt", row.names = F, col.names = F, quote = F)
+
+
+# DEG list 
+for(NN in neur.ol){
+  for(XX in c("Nb5d.PBS","Nb5d.INF")){
+    write.table(test1_up.list[[NN]][[XX]], paste0("./DEGs/overlap/DEG.list/PBSvsINF.",NN,"_",XX,"_up.txt"), row.names = F, col.names = F, quote = F)
+  }
+}
+
+for(NN in neur.ol){
+  for(XX in c("Nb5d.CTL","Nb5d.CKO")){
+    write.table(test2_up.list[[NN]][[XX]], paste0("./DEGs/overlap/DEG.list/CTLvsCKO.",NN,"_",XX,"_up.txt"), row.names = F, col.names = F, quote = F)
+  }
+}
+
+# overlap list: INFxCTL   PBSxCKO
+#     in  All  IPAN1  IPAN1.1  IPAN1.2  IPAN2  IPAN2.1
+for(NN in c("All","IPAN1","IPAN1.1","IPAN1.2","IPAN2","IPAN2.1")){
+  for(XX in c("INFxCTL","PBSxCKO")){
+    write.table(test3_up.list[[XX]][[NN]], paste0("./DEGs/overlap/overlap.list/",NN,"_",XX,".txt"), row.names = F, col.names = F, quote = F)
+  }
+}
+
+
+```
+
+
+#### plot         
+
+```{r}
+length(test3_up.list$INFxCTL$IPAN1)
+```
+
+```{r}
+vln.DEGs_INFxCTL <- list()
+```
+
+
+```{r}
+# violin for all DEGs in INFxCTL_IPAN1
+#     IPAN1 only
+vln.DEGs_INFxCTL[["IPAN1"]] <- lapply(test3_up.list$INFxCTL$IPAN1,function(xx){
+  
+  VlnPlot(subset(GEX.seur,subset=intAnno1 %in% c("IPAN1")), features = xx, group.by = "cnt", cols = color.cnt, pt.size = 0) +
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & #labs(title = "") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(0,4)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(1, 1, 1.5),
+                               size=2.75
+                               )
+  
+})
+
+names(vln.DEGs_INFxCTL[["IPAN1"]]) <- test3_up.list$INFxCTL$IPAN1
+
+```
+
+
+```{r fig.height=4, fig.width=4, message=FALSE, warning=FALSE}
+#vln.DEGs_INFxCTL[["IPAN1"]]
+```
+
+```{r fig.height=80, fig.width=16, message=FALSE, warning=FALSE}
+cowplot::plot_grid(
+plotlist = vln.DEGs_INFxCTL[["IPAN1"]],
+ncol = 4
+)
+```
+
+
+```{r eval=FALSE, include=FALSE}
+for(XX in names(vln.DEGs_INFxCTL[["IPAN1"]])){
+  
+  ggsave(paste0("./DEGs/overlap/INFxCTL_IPAN1/INFxCTL_IPAN1.IPAN1only.",XX,".pdf"),
+         width = 4, height = 4,
+         plot = vln.DEGs_INFxCTL[["IPAN1"]][[XX]])
+  
+}
+```
+
+
+```{r}
+length(test3_up.list$INFxCTL$IPAN2)
+```
+
+
+```{r}
+# violin for all DEGs in INFxCTL_IPAN2
+#     IPAN2 only
+vln.DEGs_INFxCTL[["IPAN2"]] <- lapply(test3_up.list$INFxCTL$IPAN2,function(xx){
+  
+  VlnPlot(subset(GEX.seur,subset=intAnno1 %in% c("IPAN2")), features = xx, group.by = "cnt", cols = color.cnt, pt.size = 0) +
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & #labs(title = "") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(0,4)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(1, 1, 1.5),
+                               size=2.75
+                               )
+  
+})
+
+names(vln.DEGs_INFxCTL[["IPAN2"]]) <- test3_up.list$INFxCTL$IPAN2
+
+
+# mod one without pvalue
+vln.DEGs_INFxCTL[["IPAN2"]][["Fam155a"]] <-  VlnPlot(subset(GEX.seur,subset=intAnno1 %in% c("IPAN2")), features = "Fam155a", group.by = "cnt", cols = color.cnt, pt.size = 0) +
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & #labs(title = "") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(0,4)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(3.2, 3.2, 3.8),
+                               size=2.75
+                               )
+
+```
+
+
+```{r fig.height=4, fig.width=4, message=FALSE, warning=FALSE}
+#vln.DEGs_INFxCTL[["IPAN2"]]
+```
+
+```{r fig.height=32, fig.width=16, message=FALSE, warning=FALSE}
+cowplot::plot_grid(
+plotlist = vln.DEGs_INFxCTL[["IPAN2"]],
+ncol = 4
+)
+```
+
+
+```{r eval=FALSE, include=FALSE}
+for(XX in names(vln.DEGs_INFxCTL[["IPAN2"]])){
+  
+  ggsave(paste0("./DEGs/overlap/INFxCTL_IPAN2/INFxCTL_IPAN2.IPAN2only.",XX,".pdf"),
+         width = 4, height = 4,
+         plot = vln.DEGs_INFxCTL[["IPAN2"]][[XX]])
+  
+}
+```
+
+
+
+#### sig.score              
+
+
+```{r}
+# scoring INFxCTL in IPAN1 and IPAN2
+GEX.seur <- add_geneset_score(obj = GEX.seur,
+                              Assay = "SCT",
+                              geneset = test3_up.list$INFxCTL$IPAN1,
+                              setname = "score.INFxCTL_IPAN1")
+GEX.seur <- add_geneset_score(obj = GEX.seur,
+                              Assay = "SCT",
+                              geneset = test3_up.list$INFxCTL$IPAN2,
+                              setname = "score.INFxCTL_IPAN2")
+```
+
+
+```{r}
+vln.INFxCTL <- list()
+
+vln.INFxCTL <- lapply(c("INFxCTL_IPAN1","INFxCTL_IPAN2"), function(x){
+  
+  
+  VlnPlot(GEX.seur, features = paste0("score.",x), group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & #labs(title = "") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.25,0.65)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(0.4, 0.4, 0.45),
+                               size=2.75
+                               )
+  
+  
+})
+
+names(vln.INFxCTL) <- c("INFxCTL_IPAN1","INFxCTL_IPAN2")
+
+```
+
+
+```{r fig.height=4, fig.width=8, message=FALSE, warning=FALSE}
+# All
+cowplot::plot_grid(
+  plotlist = vln.INFxCTL ,
+  ncol = 2)
+```
+
+
+```{r fig.height=4, fig.width=4, message=FALSE, warning=FALSE}
+# IPAN1 only
+x = "INFxCTL_IPAN1"
+vln.INFxCTL_IPAN1 <- VlnPlot(subset(GEX.seur, subset=intAnno1 %in% c("IPAN1")), features = paste0("score.",x), group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & #labs(title = "") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.15,0.75)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(0.6, 0.6, 0.65),
+                               size=2.75
+                               )
+vln.INFxCTL_IPAN1
+```
+
+
+```{r fig.height=4, fig.width=4, message=FALSE, warning=FALSE}
+# IPAN1 only
+x = "INFxCTL_IPAN2"
+vln.INFxCTL_IPAN2 <- VlnPlot(subset(GEX.seur, subset=intAnno1 %in% c("IPAN2")), features = paste0("score.",x), group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & #labs(title = "") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.2,1.05)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(0.85, 0.85, 0.95),
+                               size=2.75
+                               )
+vln.INFxCTL_IPAN2
+```
+
+```{r eval=FALSE, include=FALSE}
+#
+ggsave("./DEGs/sig.DEGs/vln.INFxCTL_IPAN1.IPAN1only.pdf",
+       width = 4,height = 4,
+       plot = vln.INFxCTL_IPAN1)
+#
+ggsave("./DEGs/sig.DEGs/vln.INFxCTL_IPAN2.IPAN2only.pdf",
+       width = 4,height = 4,
+       plot = vln.INFxCTL_IPAN2)
+```
+
+
+
+```{r}
+# scoring DEGs.All
+GEX.seur <- add_geneset_score(obj = GEX.seur,
+                              Assay = "SCT",
+                              geneset = test1_up.list$All$Nb5d.PBS,
+                              setname = "score.All_PBSup")
+GEX.seur <- add_geneset_score(obj = GEX.seur,
+                              Assay = "SCT",
+                              geneset = test1_up.list$All$Nb5d.INF,
+                              setname = "score.All_INFup")
+GEX.seur <- add_geneset_score(obj = GEX.seur,
+                              Assay = "SCT",
+                              geneset = test2_up.list$All$Nb5d.CTL,
+                              setname = "score.All_CTLup")
+GEX.seur <- add_geneset_score(obj = GEX.seur,
+                              Assay = "SCT",
+                              geneset = test2_up.list$All$Nb5d.CKO,
+                              setname = "score.All_CKOup")
+```
+
+```{r}
+# scoring DEGs.IPAN1
+GEX.seur <- add_geneset_score(obj = GEX.seur,
+                              Assay = "SCT",
+                              geneset = test1_up.list$IPAN1$Nb5d.PBS,
+                              setname = "score.IPAN1_PBSup")
+GEX.seur <- add_geneset_score(obj = GEX.seur,
+                              Assay = "SCT",
+                              geneset = test1_up.list$IPAN1$Nb5d.INF,
+                              setname = "score.IPAN1_INFup")
+GEX.seur <- add_geneset_score(obj = GEX.seur,
+                              Assay = "SCT",
+                              geneset = test2_up.list$IPAN1$Nb5d.CTL,
+                              setname = "score.IPAN1_CTLup")
+GEX.seur <- add_geneset_score(obj = GEX.seur,
+                              Assay = "SCT",
+                              geneset = test2_up.list$IPAN1$Nb5d.CKO,
+                              setname = "score.IPAN1_CKOup")
+```
+
+
+```{r}
+# scoring DEGs.IPAN2
+GEX.seur <- add_geneset_score(obj = GEX.seur,
+                              Assay = "SCT",
+                              geneset = test1_up.list$IPAN2$Nb5d.PBS,
+                              setname = "score.IPAN2_PBSup")
+GEX.seur <- add_geneset_score(obj = GEX.seur,
+                              Assay = "SCT",
+                              geneset = test1_up.list$IPAN2$Nb5d.INF,
+                              setname = "score.IPAN2_INFup")
+GEX.seur <- add_geneset_score(obj = GEX.seur,
+                              Assay = "SCT",
+                              geneset = test2_up.list$IPAN2$Nb5d.CTL,
+                              setname = "score.IPAN2_CTLup")
+GEX.seur <- add_geneset_score(obj = GEX.seur,
+                              Assay = "SCT",
+                              geneset = test2_up.list$IPAN2$Nb5d.CKO,
+                              setname = "score.IPAN2_CKOup")
+```
+
+
+
+```{r fig.height=4, fig.width=4, message=FALSE, warning=FALSE}
+# All_PBSup
+x = "All_PBSup"
+VlnPlot(GEX.seur, features = paste0("score.",x), group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & #labs(title = "") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.25,0.45)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(0.25, 0.25, 0.2),
+                               size=2.75
+                               )
+
+# All_INFup
+x = "All_INFup"
+VlnPlot(GEX.seur, features = paste0("score.",x), group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & #labs(title = "") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.25,0.45)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(0.25, 0.25, 0.2),
+                               size=2.75
+                               )
+
+# All_CTLup
+x = "All_CTLup"
+VlnPlot(GEX.seur, features = paste0("score.",x), group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & #labs(title = "") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.25,0.45)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(0.25, 0.25, 0.2),
+                               size=2.75
+                               )
+
+
+
+# All_CKOup
+x = "All_CKOup"
+VlnPlot(GEX.seur, features = paste0("score.",x), group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & #labs(title = "") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.25,0.45)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(0.25, 0.25, 0.2),
+                               size=2.75
+                               )
+```
+
+
+```{r fig.height=4, fig.width=4, message=FALSE, warning=FALSE}
+vln.DEGs_IPAN1 <- list()
+
+# IPAN1_PBSup
+x = "IPAN1_PBSup"
+vln.DEGs_IPAN1[[x]] <- VlnPlot(subset(GEX.seur, subset= intAnno1 %in% c("IPAN1")), features = paste0("score.",x), group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & labs(x = "IPAN1 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(0.1,1.15)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(1, 1, 0.85),
+                               size=2.75
+                               )
+
+# IPAN1_INFup
+x = "IPAN1_INFup"
+vln.DEGs_IPAN1[[x]] <- VlnPlot(subset(GEX.seur, subset= intAnno1 %in% c("IPAN1")), features = paste0("score.",x), group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & labs(x = "IPAN1 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(0,0.75)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(0.55, 0.55, 0.6),
+                               size=2.75
+                               )
+
+# IPAN1_CTLup
+x = "IPAN1_CTLup"
+vln.DEGs_IPAN1[[x]] <- VlnPlot(subset(GEX.seur, subset= intAnno1 %in% c("IPAN1")), features = paste0("score.",x), group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & labs(x = "IPAN1 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.1,0.75)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(0.55, 0.55, 0.58),
+                               size=2.75
+                               )
+
+
+
+# IPAN1_CKOup
+x = "IPAN1_CKOup"
+vln.DEGs_IPAN1[[x]] <- VlnPlot(subset(GEX.seur, subset= intAnno1 %in% c("IPAN1")), features = paste0("score.",x), group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & labs(x = "IPAN1 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(0.1,1.45)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(1.35, 1.35, 1.15),
+                               size=2.75
+                               )
+vln.DEGs_IPAN1
+```
+
+
+
+
+
+
+
+```{r fig.height=4, fig.width=4, message=FALSE, warning=FALSE}
+vln.DEGs_IPAN1.1 <- list()
+
+# IPAN1_PBSup
+x = "IPAN1_PBSup"
+vln.DEGs_IPAN1.1[[x]] <- VlnPlot(subset(GEX.seur, subset= intAnno2 %in% c("IPAN1.1")), features = paste0("score.",x), group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & labs(x = "IPAN1.1 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(0.1,1.15)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(1, 1, 0.85),
+                               size=2.75
+                               )
+
+# IPAN1_INFup
+x = "IPAN1_INFup"
+vln.DEGs_IPAN1.1[[x]] <- VlnPlot(subset(GEX.seur, subset= intAnno2 %in% c("IPAN1.1")), features = paste0("score.",x), group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & labs(x = "IPAN1.1 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(0,0.65)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(0.55, 0.55, 0.6),
+                               size=2.75
+                               )
+
+# IPAN1_CTLup
+x = "IPAN1_CTLup"
+vln.DEGs_IPAN1.1[[x]] <- VlnPlot(subset(GEX.seur, subset= intAnno2 %in% c("IPAN1.1")), features = paste0("score.",x), group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & labs(x = "IPAN1.1 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.1,0.65)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(0.55, 0.55, 0.58),
+                               size=2.75
+                               )
+
+
+
+# IPAN1_CKOup
+x = "IPAN1_CKOup"
+vln.DEGs_IPAN1.1[[x]] <- VlnPlot(subset(GEX.seur, subset= intAnno2 %in% c("IPAN1.1")), features = paste0("score.",x), group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & labs(x = "IPAN1.1 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(0.1,1.5)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(1.35, 1.35, 1.15),
+                               size=2.75
+                               )
+vln.DEGs_IPAN1.1
+```
+
+
+
+```{r fig.height=4, fig.width=4, message=FALSE, warning=FALSE}
+vln.DEGs_IPAN1.2 <- list()
+
+# IPAN1_PBSup
+x = "IPAN1_PBSup"
+vln.DEGs_IPAN1.2[[x]] <- VlnPlot(subset(GEX.seur, subset= intAnno2 %in% c("IPAN1.2")), features = paste0("score.",x), group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & labs(x = "IPAN1.2 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(0.15,1.15)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(1, 1, 0.85),
+                               size=2.75
+                               )
+
+# IPAN1_INFup
+x = "IPAN1_INFup"
+vln.DEGs_IPAN1.2[[x]] <- VlnPlot(subset(GEX.seur, subset= intAnno2 %in% c("IPAN1.2")), features = paste0("score.",x), group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & labs(x = "IPAN1.2 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(0,0.65)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(0.55, 0.55, 0.6),
+                               size=2.75
+                               )
+
+# IPAN1_CTLup
+x = "IPAN1_CTLup"
+vln.DEGs_IPAN1.2[[x]] <- VlnPlot(subset(GEX.seur, subset= intAnno2 %in% c("IPAN1.2")), features = paste0("score.",x), group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & labs(x = "IPAN1.2 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.1,0.65)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(0.55, 0.55, 0.58),
+                               size=2.75
+                               )
+
+
+
+# IPAN1_CKOup
+x = "IPAN1_CKOup"
+vln.DEGs_IPAN1.2[[x]] <- VlnPlot(subset(GEX.seur, subset= intAnno2 %in% c("IPAN1.2")), features = paste0("score.",x), group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & labs(x = "IPAN1.2 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(0.2,1.5)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(1.35, 1.35, 1.15),
+                               size=2.75
+                               )
+vln.DEGs_IPAN1.2
+```
+
+
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+# 
+pdf("./DEGs/sig.DEGs/vln.DEGs_IPAN1.IPAN1only.pdf",
+       width = 8, height = 8)
+cowplot::plot_grid(plotlist = vln.DEGs_IPAN1, ncol = 2)
+dev.off()
+
+# 
+pdf("./DEGs/sig.DEGs/vln.DEGs_IPAN1.IPAN1.1only.pdf",
+       width = 8, height = 8)
+cowplot::plot_grid(plotlist = vln.DEGs_IPAN1.1, ncol = 2)
+dev.off()
+
+# 
+pdf("./DEGs/sig.DEGs/vln.DEGs_IPAN1.IPAN1.2only.pdf",
+       width = 8, height = 8)
+cowplot::plot_grid(plotlist = vln.DEGs_IPAN1.2, ncol = 2)
+dev.off()
+```
+
+
+```{r fig.height=4, fig.width=4, message=FALSE, warning=FALSE}
+vln.DEGs_IPAN2 <- list()
+
+# IPAN2_PBSup
+x = "IPAN2_PBSup"
+vln.DEGs_IPAN2[[x]] <- VlnPlot(subset(GEX.seur, subset= intAnno1 %in% c("IPAN2")), features = paste0("score.",x), group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & #labs(title = "") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.1,1.25)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(1.1, 1, 0.85),
+                               size=2.75
+                               )
+
+# IPAN2_INFup
+x = "IPAN2_INFup"
+vln.DEGs_IPAN2[[x]] <- VlnPlot(subset(GEX.seur, subset= intAnno1 %in% c("IPAN2")), features = paste0("score.",x), group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & #labs(title = "") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.1,0.85)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(0.7, 0.65, 0.75),
+                               size=2.75
+                               )
+
+# IPAN2_CTLup
+x = "IPAN2_CTLup"
+vln.DEGs_IPAN2[[x]] <- VlnPlot(subset(GEX.seur, subset= intAnno1 %in% c("IPAN2")), features = paste0("score.",x), group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & #labs(title = "") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.1,0.85)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(0.72, 0.72, 0.78),
+                               size=2.75
+                               )
+
+
+
+# IPAN2_CKOup
+x = "IPAN2_CKOup"
+vln.DEGs_IPAN2[[x]] <- VlnPlot(subset(GEX.seur, subset= intAnno1 %in% c("IPAN2")), features = paste0("score.",x), group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & #labs(title = "") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.1,1.85)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(1.65, 1.65, 1.55),
+                               size=2.75
+                               )
+vln.DEGs_IPAN2
+```
+
+
+
+```{r fig.height=4, fig.width=4, message=FALSE, warning=FALSE}
+vln.DEGs_IPAN2.1 <- list()
+
+# IPAN2_PBSup
+x = "IPAN2_PBSup"
+vln.DEGs_IPAN2.1[[x]] <- VlnPlot(subset(GEX.seur, subset= intAnno2 %in% c("IPAN2.1")), features = paste0("score.",x), group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & labs(x = "IPAN2.1 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.1,1.25)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(1.1, 1, 0.85),
+                               size=2.75
+                               )
+
+# IPAN2_INFup
+x = "IPAN2_INFup"
+vln.DEGs_IPAN2.1[[x]] <- VlnPlot(subset(GEX.seur, subset= intAnno2 %in% c("IPAN2.1")), features = paste0("score.",x), group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & labs(x = "IPAN2.1 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.1,0.85)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(0.7, 0.65, 0.75),
+                               size=2.75
+                               )
+
+# IPAN2_CTLup
+x = "IPAN2_CTLup"
+vln.DEGs_IPAN2.1[[x]] <- VlnPlot(subset(GEX.seur, subset= intAnno2 %in% c("IPAN2.1")), features = paste0("score.",x), group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & labs(x = "IPAN2.1 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.1,0.85)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(0.72, 0.72, 0.78),
+                               size=2.75
+                               )
+
+
+
+# IPAN2_CKOup
+x = "IPAN2_CKOup"
+vln.DEGs_IPAN2.1[[x]] <- VlnPlot(subset(GEX.seur, subset= intAnno2 %in% c("IPAN2.1")), features = paste0("score.",x), group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & labs(x = "IPAN2.1 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.1,1.85)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(1.65, 1.65, 1.55),
+                               size=2.75
+                               )
+vln.DEGs_IPAN2.1
+```
+
+
+
+```{r fig.height=4, fig.width=4, message=FALSE, warning=FALSE}
+vln.DEGs_IPAN2.2 <- list()
+  
+# IPAN2_PBSup
+x = "IPAN2_PBSup"
+vln.DEGs_IPAN2.2[[x]] <- VlnPlot(subset(GEX.seur, subset= intAnno2 %in% c("IPAN2.2")), features = paste0("score.",x), group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & labs(x = "IPAN2.2 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.1,1.1)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(0.95, 0.85, 0.75),
+                               size=2.75
+                               )
+
+# IPAN2_INFup
+x = "IPAN2_INFup"
+vln.DEGs_IPAN2.2[[x]] <- VlnPlot(subset(GEX.seur, subset= intAnno2 %in% c("IPAN2.2")), features = paste0("score.",x), group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & labs(x = "IPAN2.2 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.1,0.65)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(0.5, 0.54, 0.58),
+                               size=2.75
+                               )
+
+# IPAN2_CTLup
+x = "IPAN2_CTLup"
+vln.DEGs_IPAN2.2[[x]] <- VlnPlot(subset(GEX.seur, subset= intAnno2 %in% c("IPAN2.2")), features = paste0("score.",x), group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & labs(x = "IPAN2.2 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.1,0.7)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(0.5, 0.45, 0.58),
+                               size=2.75
+                               )
+
+
+
+# IPAN2_CKOup
+x = "IPAN2_CKOup"
+vln.DEGs_IPAN2.2[[x]] <- VlnPlot(subset(GEX.seur, subset= intAnno2 %in% c("IPAN2.2")), features = paste0("score.",x), group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & labs(x = "IPAN2.2 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.1,1.65)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(1.45, 1.45, 1.35),
+                               size=2.75
+                               )
+vln.DEGs_IPAN2.2
+```
+
+
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+# 
+pdf("./DEGs/sig.DEGs/vln.DEGs_IPAN2.IPAN2only.pdf",
+       width = 8, height = 8)
+cowplot::plot_grid(plotlist = vln.DEGs_IPAN2, ncol = 2)
+dev.off()
+
+# 
+pdf("./DEGs/sig.DEGs/vln.DEGs_IPAN2.IPAN2.1only.pdf",
+       width = 8, height = 8)
+cowplot::plot_grid(plotlist = vln.DEGs_IPAN2.1, ncol = 2)
+dev.off()
+
+# 
+pdf("./DEGs/sig.DEGs/vln.DEGs_IPAN2.IPAN2.2only.pdf",
+       width = 8, height = 8)
+cowplot::plot_grid(plotlist = vln.DEGs_IPAN2.2, ncol = 2)
+dev.off()
+```
+
+
+### check IEGs          
+
+
+```{r}
+IEGs.1 <- c("Fos","Jun","Egr1","Arc",
+          "Npas4","Homer1","Nptx2","Crem",
+          "Syne1", # CPG2
+          "Ptgs2", # COX-2
+          "Nrn1", # CPG15
+          #"Nptx2", # Narp
+          "Bdnf", 
+          "Plk2", # SNK
+          "Plat"  # tPA
+          )
+
+IEGs.1 <- IEGs.1[IEGs.1 %in% rownames(GEX.seur)]
+IEGs.1
+```
+
+```{r}
+length(IEGs.1)
+sum(IEGs.1 %in% rownames(GEX.seur))
+```
+
+
+```{r fig.height=5.5, fig.width=6.5}
+
+pm.All_new.IEGs <- DotPlot(GEX.seur, features = IEGs.1, group.by = "intAnno2",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 9.15))+ scale_y_discrete(limits=rev) + labs(title="All - intAnno2")
+pm.All_new.IEGs
+
+```
+
+
+```{r}
+# scoring IEGs
+GEX.seur <- add_geneset_score(obj = GEX.seur,
+                              Assay = "SCT",
+                              geneset = IEGs.1,
+                              setname = "score.IEGs")
+```
+
+```{r}
+neur.clusters
+```
+
+
+```{r fig.width=4, fig.height=4}
+ VlnPlot(GEX.seur, features = paste0("score.","IEGs"), group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & labs(x = "All neurons") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.15,0.3)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(0.15, 0.15, 0.2),
+                               size=2.75
+                               )
+```
+
+
+```{r}
+list_new
+```
+
+```{r}
+length(list_new)
+```
+
+
+```{r fig.height=4, fig.width=4, message=FALSE, warning=FALSE}
+
+vln.IEGs <- list()
+
+for(NN in names(list_new)){
+vln.IEGs[[NN]] <- VlnPlot(subset(GEX.seur, subset= intAnno2 %in% c(list_new[[NN]])), features = paste0("score.","IEGs"), group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & labs(x = NN) &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.15,0.3)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(0.15, 0.15, 0.2),
+                               size=2.75
+                               )
+  
+}
+
+#vln.IEGs
+```
+
+
+```{r fig.height=16, fig.width=24, message=FALSE, warning=FALSE}
+cowplot::plot_grid(
+  plotlist = vln.IEGs,
+  ncol = 6
+)
+```
+
+```{r fig.height=4, fig.width=4, message=FALSE, warning=FALSE}
+
+vln.Syne1 <- list()
+
+for(NN in names(list_new)){
+vln.Syne1[[NN]] <- VlnPlot(subset(GEX.seur, subset= intAnno2 %in% c(list_new[[NN]])), features = "Syne1", group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & labs(x = NN) &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(0,2.5)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(1.25, 1.25, 1.6),
+                               size=2.75
+                               )
+  
+}
+
+#vln.Syne1
+```
+
+
+```{r fig.height=16, fig.width=24, message=FALSE, warning=FALSE}
+cowplot::plot_grid(
+  plotlist = vln.Syne1,
+  ncol = 6
+)
+```
+
+```{r fig.height=4, fig.width=4, message=FALSE, warning=FALSE}
+
+vln.Fos <- list()
+
+for(NN in names(list_new)){
+vln.Fos[[NN]] <- VlnPlot(subset(GEX.seur, subset= intAnno2 %in% c(list_new[[NN]])), features = "Fos", group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & labs(x = NN) &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(0,1.5)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(0.25, 0.25, 0.5),
+                               size=2.75
+                               )
+  
+}
+
+#vln.Fos
+```
+
+
+```{r eval=FALSE, fig.height=16, fig.width=24, message=FALSE, warning=FALSE, include=FALSE}
+cowplot::plot_grid(
+  plotlist = vln.Fos,
+  ncol = 6
+)
+```
+
+
+```{r fig.height=4, fig.width=4, message=FALSE, warning=FALSE}
+
+vln.Jun <- list()
+
+for(NN in names(list_new)){
+vln.Jun[[NN]] <- VlnPlot(subset(GEX.seur, subset= intAnno2 %in% c(list_new[[NN]])), features = "Jun", group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & labs(x = NN) &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(0,1.5)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(0.25, 0.25, 0.5),
+                               size=2.75
+                               )
+  
+}
+
+#vln.Jun
+```
+
+
+```{r eval=FALSE, fig.height=16, fig.width=24, message=FALSE, warning=FALSE, include=FALSE}
+cowplot::plot_grid(
+  plotlist = vln.Jun,
+  ncol = 6
+)
+```
+
+
+```{r eval=FALSE, fig.height=4, fig.width=4, message=FALSE, warning=FALSE, include=FALSE}
+
+vln.Crem <- list()
+
+for(NN in names(list_new)){
+vln.Crem[[NN]] <- VlnPlot(subset(GEX.seur, subset= intAnno2 %in% c(list_new[[NN]])), features = "Crem", group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & labs(x = NN) &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(0,1.5)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(0.25, 0.25, 0.5),
+                               size=2.75
+                               )
+  
+}
+
+#vln.Crem
+```
+
+
+```{r eval=FALSE, fig.height=16, fig.width=24, message=FALSE, warning=FALSE, include=FALSE}
+cowplot::plot_grid(
+  plotlist = vln.Crem,
+  ncol = 6
+)
+```
+
+```{r fig.height=4, fig.width=4, message=FALSE, warning=FALSE}
+
+vln.Nrn1 <- list()
+
+for(NN in names(list_new)){
+vln.Nrn1[[NN]] <- VlnPlot(subset(GEX.seur, subset= intAnno2 %in% c(list_new[[NN]])), features = "Nrn1", group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & labs(x = NN) &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(0,1.5)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(0.25, 0.25, 0.5),
+                               size=2.75
+                               )
+  
+}
+
+#vln.Nrn1
+```
+
+
+```{r eval=FALSE, fig.height=16, fig.width=24, message=FALSE, warning=FALSE, include=FALSE}
+cowplot::plot_grid(
+  plotlist = vln.Nrn1,
+  ncol = 6
+)
+```
+
+```{r fig.height=4, fig.width=4, message=FALSE, warning=FALSE}
+
+vln.Bdnf <- list()
+
+for(NN in names(list_new)){
+vln.Bdnf[[NN]] <- VlnPlot(subset(GEX.seur, subset= intAnno2 %in% c(list_new[[NN]])), features = "Bdnf", group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & labs(x = NN) &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(0,1.5)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(0.25, 0.25, 0.5),
+                               size=2.75
+                               )
+  
+}
+
+#vln.Bdnf
+```
+
+
+```{r eval=FALSE, fig.height=16, fig.width=24, message=FALSE, warning=FALSE, include=FALSE}
+cowplot::plot_grid(
+  plotlist = vln.Bdnf,
+  ncol = 6
+)
+```
+
+
+```{r fig.height=4, fig.width=4, message=FALSE, warning=FALSE}
+
+vln.Il13ra1 <- list()
+
+for(NN in names(list_new)){
+vln.Il13ra1[[NN]] <- VlnPlot(subset(GEX.seur, subset= intAnno2 %in% c(list_new[[NN]])), features = "Il13ra1", group.by = "cnt", cols = color.cnt, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.1, shape=16, width = 0.2, size = 0.15) & labs(x = NN) &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(0,2)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF"),
+                                                  c("Nb5d.CTL","Nb5d.CKO"),
+                                                  c("Nb5d.INF","Nb5d.CTL")),
+                               label.y = c(0.85, 0.85, 0.95),
+                               size=2.75
+                               )
+  
+}
+
+#vln.Il13ra1
+```
+
+
+```{r eval=FALSE, fig.height=16, fig.width=24, message=FALSE, warning=FALSE, include=FALSE}
+cowplot::plot_grid(
+  plotlist = vln.Il13ra1,
+  ncol = 6
+)
+```
+
+
+```{r}
+#saveRDS(GEX.seur, "./sn10x_WYS.sct_anno.s.rds")
+#GEX.seur <- readRDS("./sn10x_WYS.sct_anno.s.rds")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+

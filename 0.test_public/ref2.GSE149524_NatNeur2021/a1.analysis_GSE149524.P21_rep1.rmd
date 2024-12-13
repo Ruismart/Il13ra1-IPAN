@@ -1,0 +1,1111 @@
+---
+output: 
+  html_document: 
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+--- 
+       
+      
+# GSE149524                                 
+      
+there're 4 batches       
+        
+two P21 replicates for neuron atlas        
+       
+one E15.5 and one E18.5 for trajectory analysis          
+         
+      
+      
+##### load dependancies               
+```{r message=FALSE, warning=FALSE, include=FALSE}
+source("I:/Shared_win/projects/RNA_normal/analysis.10x.r")
+```
+          
+           
+## load 10x data         
+           
+```{r}
+GEX <- Read10X(data.dir = "../ref.GSE149524/GSE149524_RAW/GSM4504450_P21_1/")
+```
+       
+          
+### check datasets         
+```{r message=FALSE, warning=FALSE}
+dim(GEX)
+GEX[1:6,1:6]
+```
+
+## GEX           
+
+
+```{r message=FALSE, warning=FALSE}
+GEX.seur <- CreateSeuratObject(counts = GEX,
+                               min.cells = 3,
+                               min.features = 200,
+                               project = "P21.rep1")
+GEX.seur
+```
+
+### filtering    
+
+#### MT genes   
+```{r}
+grep("^mt-",rownames(GEX),value = T)
+grep("^Rps|^Rpl",rownames(GEX),value = T)
+```
+
+
+```{r}
+MT_gene <- grep("^mt-",rownames(GEX.seur),value = T)
+GEX.seur[["percent.mt"]] <- PercentageFeatureSet(GEX.seur, features = MT_gene)
+
+RB_gene <- grep("^Rps|^Rpl",rownames(GEX.seur),value = T)
+GEX.seur[["percent.rb"]] <- PercentageFeatureSet(GEX.seur, features = RB_gene)
+
+# Visualize QC metrics as a violin plot
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt","percent.rb"), ncol = 4, pt.size = 0.01)
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt","percent.rb"), ncol = 4, pt.size = 0)
+```
+
+
+```{r fig.width=15,fig.height=4}
+plota <- FeatureScatter(GEX.seur, feature1 = "nCount_RNA", feature2 = "percent.mt") 
+plotb <- FeatureScatter(GEX.seur, feature1 = "nCount_RNA", feature2 = "nFeature_RNA") 
+plotc <- FeatureScatter(GEX.seur, feature1 = "nCount_RNA", feature2 = "percent.rb") 
+plota + plotb + plotc
+```
+
+
+```{r fig.width=15,fig.height=4}
+plota1 <- FeatureScatter(GEX.seur, feature1 = "nFeature_RNA", feature2 = "percent.mt") 
+plotb1 <- FeatureScatter(GEX.seur, feature1 = "nCount_RNA", feature2 = "nFeature_RNA") 
+plotc1 <- FeatureScatter(GEX.seur, feature1 = "nCount_RNA", feature2 = "percent.rb") 
+plota1 + plotb1 + plotc1
+```
+
+
+#### filtering       
+
+
+```{r}
+GEX.seur <- subset(GEX.seur, subset = nFeature_RNA > 1000 & nFeature_RNA < 8000 & nCount_RNA < 60000 & percent.mt < 10)
+GEX.seur
+```
+
+
+```{r fig.width=8, fig.height=5}
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt","percent.rb"), ncol = 4, pt.size = 0.1)
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt","percent.rb"), ncol = 4, pt.size = 0)
+```
+
+
+```{r fig.width=15,fig.height=4}
+plota <- FeatureScatter(GEX.seur, feature1 = "nCount_RNA", feature2 = "percent.mt") 
+plotb <- FeatureScatter(GEX.seur, feature1 = "nCount_RNA", feature2 = "nFeature_RNA") 
+plotc <- FeatureScatter(GEX.seur, feature1 = "nCount_RNA", feature2 = "percent.rb") 
+plota + plotb + plotc
+```
+
+
+```{r fig.width=15,fig.height=4}
+plota1 <- FeatureScatter(GEX.seur, feature1 = "nFeature_RNA", feature2 = "percent.mt") 
+plotb1 <- FeatureScatter(GEX.seur, feature1 = "nCount_RNA", feature2 = "nFeature_RNA") 
+plotc1 <- FeatureScatter(GEX.seur, feature1 = "nCount_RNA", feature2 = "percent.rb") 
+plota1 + plotb1 + plotc1
+```
+
+
+#### check cellcycle       
+```{r}
+s.genes <- Hmisc::capitalize(tolower(cc.genes.updated.2019$s.genes))
+g2m.genes <- Hmisc::capitalize(tolower(cc.genes.updated.2019$g2m.genes))
+
+GEX.seur <- CellCycleScoring(GEX.seur,
+                             s.features = s.genes,
+                             g2m.features = g2m.genes)
+```
+
+
+```{r}
+VlnPlot(GEX.seur, features = c("S.Score", "G2M.Score"), #group.by = "FB.info", 
+    ncol = 2, pt.size = 0.01)
+```
+
+
+```{r message=FALSE, warning=FALSE}
+GEX.seur.cc <- GEX.seur
+
+GEX.seur.cc <- NormalizeData(GEX.seur.cc)
+GEX.seur.cc <- FindVariableFeatures(GEX.seur.cc)
+GEX.seur.cc <- ScaleData(GEX.seur.cc)
+Idents(GEX.seur.cc) <- "Phase"
+RidgePlot(GEX.seur.cc, features = c("Pcna", "Top2a", "Mcm6", "Mki67"), ncol = 2)
+```
+
+```{r message=FALSE, warning=FALSE}
+GEX.seur.cc <- RunPCA(GEX.seur.cc, features = c(s.genes, g2m.genes))
+DimPlot(GEX.seur.cc, reduction = 'pca')
+```
+
+nearly no cycling !     
+
+
+### Markers and Clusters            
+
+#### Normalizing          
+
+```{r}
+GEX.seur <- NormalizeData(GEX.seur, normalization.method = "LogNormalize", scale.factor = 10000)
+```
+
+
+```{r message=FALSE, warning=FALSE,varselection,fig.width=15,fig.height=6}
+GEX.seur <- FindVariableFeatures(GEX.seur, selection.method = "vst", nfeatures = 1500)
+
+# Identify the 10 most highly variable genes
+#top10 <- head(VariableFeatures(GEX.seur), 10)
+top20 <- head(VariableFeatures(GEX.seur), 20)
+
+# plot variable features with and without labels
+plot1 <- VariableFeaturePlot(GEX.seur)
+plot2 <- LabelPoints(plot = plot1, points = top20, repel = T)
+plot1 + plot2
+```
+
+```{r}
+head(VariableFeatures(GEX.seur), 100)
+```
+
+```{r}
+GEX.seur <- ScaleData(GEX.seur, features = rownames(GEX.seur))
+```
+
+
+#### PCA       
+
+```{r}
+# exclude MT genes  and more 
+
+#DIG <- grep("^Tra|^Trb|^Trg|^Trd|^Tcr|^Igm|^Igh|^Igk|^Igl|Jchain|^Hsp|^Rps|^Rpl|Hbb-|Hba-|^Dnaj|^AY|^Gm|^Hist",rownames(GEX.seur),value = T)
+
+DIG <- grep("^Tra|^Trb|^Trg|^Trd|^Tcr|^Igm|^Igh|^Igk|^Igl|Jchain|Mzb1|Vpreb|Lars2|Jun|Fos|Egr1|RP23-|^Hsp|^Rps|^Rpl|Hbb-|Hba-|^Dnaj|^AY|^AC|^AI|^BC|^Gm|^Hist|Rik$|-ps",
+            rownames(GEX.seur),value = T)
+CC_gene <- Hmisc::capitalize(tolower(as.vector(unlist(cc.genes.updated.2019))))
+
+
+GEX.seur <- RunPCA(GEX.seur, features = setdiff(VariableFeatures(object = GEX.seur),
+                                                c(MT_gene,
+                                                  DIG, 
+                                                  CC_gene) ))
+```
+
+
+```{r}
+length(setdiff(VariableFeatures(object = GEX.seur),
+                                                c(MT_gene,DIG, CC_gene) ))
+head(setdiff(VariableFeatures(object = GEX.seur),
+                                                c(MT_gene,DIG, CC_gene) ),300)
+```
+
+
+```{r pca,fig.width=10.8,fig.height=4.5}
+DimPlot(GEX.seur, reduction = "pca",dims = 1:2, group.by = "orig.ident") +
+  DimPlot(GEX.seur, reduction = "pca",dims = 3:4, group.by = "orig.ident")
+```
+
+
+```{r pcsheat,fig.width=12,fig.height=15}
+DimHeatmap(GEX.seur, dims = 1:12, cells = 1500, balanced = TRUE,ncol = 4)
+```
+
+
+##### decide PCs to use          
+     
+```{r}
+ElbowPlot(GEX.seur,ndims = 50)
+```
+
+
+```{r}
+PCs <- 1:24
+GEX.seur <- FindNeighbors(GEX.seur, dims = PCs, k.param =20)
+GEX.seur <- FindClusters(GEX.seur, method = 'igraph' ,resolution = 1.5)
+```
+
+
+#### Run UMAP/tSNE    
+
+```{r}
+GEX.seur <- RunTSNE(GEX.seur, dims=PCs, complexity=100)
+GEX.seur <- RunUMAP(GEX.seur, dims=PCs, n.neighbors = 20, seed.use = 135)
+```
+
+
+```{r fig.width=12,fig.height=4.5}
+DimPlot(GEX.seur, reduction = "tsne", label = T) + DimPlot(GEX.seur, reduction = "umap", label = T)
+```
+
+
+```{r fig.width=7.5,fig.height=6}
+FeaturePlot(GEX.seur, reduction = "umap", features = c("nFeature_RNA","nCount_RNA","percent.mt","percent.rb"))
+```
+
+
+```{r}
+markers.neur <- list(PEMN=c("Chat","Tac1","Drd2"),
+                     PIMN=c("Nos1","Vip","Adm","Lgr5"),
+                     PIN=c("Penk","Prlr","Mtnr1a"),
+                     PSN=c("Calca","Calcb","Cck","Bdnf",
+                           "Piezo2","Nog","Nmu","Sst","Il4ra",
+                           "Il13ra1","Il7"),
+                     PSVN=c("Glp2r","Fst","Csf2rb","Csf2rb2"),
+                     Glia=c("Plp1","Gfap","Rxrg"),  # add three more
+                     mosue=c("Fos","Actl6a","Actl6b","Phox2b","Sox10","Mki67","Top2a")  # Baf53
+                     )
+unlist(markers.neur)
+```
+
+```{r fig.width=8, fig.height=6}
+DotPlot(GEX.seur, features = as.vector(unlist(markers.neur)), group.by = "seurat_clusters") + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+```
+
+
+### DoubletFinder
+
+
+```{r}
+library(DoubletFinder)
+```
+
+```{r include=FALSE}
+# to find a better pk
+sweep.res.list <- paramSweep_v3(GEX.seur, PCs = PCs, sct = FALSE) 
+```
+
+```{r echo=FALSE}
+for(i in 1:length(sweep.res.list)){
+  if(length(sweep.res.list[[i]]$pANN[is.nan(sweep.res.list[[i]]$pANN)]) !=0){
+    if(i!=1){
+      sweep.res.list[[i]] <- sweep.res.list[[i-1]]
+    }else(
+      sweep.res.list[[i]] <- sweep.res.list[[i+1]]
+    )
+  }
+}
+sweep.stats <- summarizeSweep(sweep.res.list, GT=FALSE)
+bcmvn <- find.pK(sweep.stats)
+```
+
+```{r echo=FALSE}
+pk_v <- as.numeric(as.character(bcmvn$pK))
+pk_good <- pk_v[bcmvn$BCmetric==max(bcmvn$BCmetric)]
+```
+
+```{r echo=FALSE}
+# specify expected doublet number     
+nExp_poi <- round(0.05*length(colnames(GEX.seur)))
+
+GEX.seur <- doubletFinder_v3(GEX.seur, PCs = PCs, pN = 0.25, pK = pk_good, 
+                             nExp = nExp_poi, reuse.pANN = FALSE, sct = FALSE)
+colnames(GEX.seur@meta.data)[ncol(GEX.seur@meta.data)] <- "DoubletFinder0.05"
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# specify expected doublet number     
+nExp_poi <- round(0.1*length(colnames(GEX.seur)))
+
+GEX.seur <- doubletFinder_v3(GEX.seur, PCs = PCs, pN = 0.25, pK = pk_good, 
+                             nExp = nExp_poi, reuse.pANN = FALSE, sct = FALSE)
+colnames(GEX.seur@meta.data)[ncol(GEX.seur@meta.data)] <- "DoubletFinder0.1"
+```
+
+
+```{r echo=FALSE, fig.height=4.5, fig.width=10.8}
+DimPlot(GEX.seur, reduction = "umap", group.by = "DoubletFinder0.05") +
+  DimPlot(GEX.seur, reduction = "umap", label = T)
+```
+
+```{r echo=FALSE, fig.height=4.5, fig.width=10.8}
+DimPlot(GEX.seur, reduction = "umap", group.by = "DoubletFinder0.05") +
+DimPlot(GEX.seur, reduction = "umap", group.by = "DoubletFinder0.1")
+```
+
+
+### markers          
+
+
+#### figure2         
+            
+```{r}
+check.fig2 <- list(Neurotransmission=c("Oprk1","Adrb2","Cckar","Htr2b",
+                                       "Gucy2g","Galr1","Vipr2","Grin3a",
+                                       "Adora1","Crhr2","Chrna2","Tacr3",
+                                       "Gabrg3","Nmur2","Grm5","P2ry6",
+                                       "Galr2","Sstr2","Gabre","Npy5r",
+                                       "Npy1r","Sstr5"),
+                   Othersignaling=c("Cxcl12","Fgfr2","Ntrk2","Egfr",
+                                    "Nmbr","Ptgfr","Pgf","Edn1",
+                                    "Kit","Prokr2","Islr2","Gfral",
+                                    "Mc4r","Bdnf","Kitl","Gfra1",
+                                    "Tgfbr2","Ednra","Prokr1","Bmpr1b"),
+                   Ionchannels=c("Kcns3","Ano10","Kcnip4","Kcnip1",
+                                 "Kcnn2","Kcnn3","Ano2","Ano8",
+                                 "Kcna2","Scn1a","Kcna5","Kcnab1",
+                                 "Cacna1i","Kcnd2","Kcnv1",
+                                 "Cacng5","Piezo2","Piezo1"),   # Peizo1 manually added 
+                   Adhesionmolecules=c("Ly6c1","Itgb5","Sema3e","Ntn1",
+                                       "Slitrk4","Itga6","Cdh8","Ptpru",
+                                       "Itgb6","Unc5b","Avil","Sema5a",
+                                       "Epha8","Cdh7","Itga1","Ephb6",
+                                       "Flrt2","Nxph2","Ntng1"),
+                   Transcriptionfactors=c("Satb1","Ebf3","Bnc2","Nfatc1",
+                                          "Zfp503","Satb2","Cux2","Dlx3",
+                                          "Atoh8","Zfp804a","Ebf2","Pbx3",
+                                          "Meis1","Etv1","St18","Ebf1",
+                                          "Neurod6","Trps1","Zfp800","Onecut2",
+                                          "Phox2a","Phox2b"),
+                   AnnexinsCopines=c("Anxa4","Anxa3","Anxa11","Anxa2",
+                                     "Anxa5","Anxa6","Anxa7","Cpne4",
+                                     "Cpne5","Cpne7","Cpne2","Cpne3",
+                                     "Cpne8"))
+names.fig2 <- names(check.fig2)
+```
+
+
+```{r}
+check.fig2
+```
+
+
+```{r}
+lapply(check.fig2, length)
+```
+
+
+```{r}
+names.fig2
+```
+
+
+
+```{r  fig.height=6, fig.width=7.5}
+DotPlot(GEX.seur, features = check.fig2$Neurotransmission, group.by = "seurat_clusters",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 11.5))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[1])
+
+DotPlot(GEX.seur, features = check.fig2$Othersignaling, group.by = "seurat_clusters",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+#scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[2])
+
+DotPlot(GEX.seur, features = check.fig2$Ionchannels, group.by = "seurat_clusters",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[3])
+
+DotPlot(GEX.seur, features = check.fig2$Adhesionmolecules, group.by = "seurat_clusters",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[4])
+
+DotPlot(GEX.seur, features = check.fig2$Transcriptionfactors, group.by = "seurat_clusters",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[5])
+
+DotPlot(GEX.seur, features = check.fig2$AnnexinsCopines, group.by = "seurat_clusters",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[6])
+```
+
+
+
+```{r}
+GEX.seur$sort_clusters <- factor(as.character(GEX.seur$seurat_clusters),
+                                 levels = c(0,2,15,  # ENC1
+                                            6,3,     # ENC2
+                                            8,5,     # ENC3
+                                            22,      # ENC4
+                                            21,      # ENC5
+                                            19,      # ENC6
+                                            12,17,   # ENC7
+                                            1,       # ENC8
+                                            7,9,13,  # ENC9
+                                            10,      # ENC10
+                                            18,      # ENC11
+                                            14,      # ENC12
+                                            
+                                            16,      # Glia1
+                                            4,       # Glia2
+                                            11,      # Glia3
+                                            20       # Glia4
+                                            ))
+
+GEX.seur$preAnno <- as.character(GEX.seur$seurat_clusters)
+
+GEX.seur$preAnno[GEX.seur$preAnno %in% c(0,2,15)] <- "ENC1"
+GEX.seur$preAnno[GEX.seur$preAnno %in% c(6,3)] <- "ENC2"
+GEX.seur$preAnno[GEX.seur$preAnno %in% c(8,5)] <- "ENC3"
+GEX.seur$preAnno[GEX.seur$preAnno %in% c(22)] <- "ENC4"
+
+GEX.seur$preAnno[GEX.seur$preAnno %in% c(21)] <- "ENC5"
+GEX.seur$preAnno[GEX.seur$preAnno %in% c(19)] <- "ENC6"
+GEX.seur$preAnno[GEX.seur$preAnno %in% c(12,17)] <- "ENC7"
+GEX.seur$preAnno[GEX.seur$preAnno %in% c(1)] <- "ENC8"
+
+GEX.seur$preAnno[GEX.seur$preAnno %in% c(7,9,13)] <- "ENC9"
+GEX.seur$preAnno[GEX.seur$preAnno %in% c(10)] <- "ENC10"
+GEX.seur$preAnno[GEX.seur$preAnno %in% c(18)] <- "ENC11"
+GEX.seur$preAnno[GEX.seur$preAnno %in% c(14)] <- "ENC12"
+
+GEX.seur$preAnno[GEX.seur$preAnno %in% c(16)] <- "Glia1"
+GEX.seur$preAnno[GEX.seur$preAnno %in% c(4)] <- "Glia2"
+GEX.seur$preAnno[GEX.seur$preAnno %in% c(11)] <- "Glia3"
+GEX.seur$preAnno[GEX.seur$preAnno %in% c(20)] <- "Glia4"
+
+GEX.seur$preAnno <- factor(GEX.seur$preAnno,
+                           levels = c(paste0("ENC",1:12),
+                                      paste0("Glia",1:4)))
+```
+
+
+
+```{r  fig.height=6, fig.width=7.5}
+DotPlot(GEX.seur, features = check.fig2$Neurotransmission, group.by = "sort_clusters",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 11.5))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[1])
+
+DotPlot(GEX.seur, features = check.fig2$Othersignaling, group.by = "sort_clusters",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+#scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[2])
+
+DotPlot(GEX.seur, features = check.fig2$Ionchannels, group.by = "sort_clusters",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[3])
+
+DotPlot(GEX.seur, features = check.fig2$Adhesionmolecules, group.by = "sort_clusters",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[4])
+
+DotPlot(GEX.seur, features = check.fig2$Transcriptionfactors, group.by = "sort_clusters",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[5])
+
+DotPlot(GEX.seur, features = check.fig2$AnnexinsCopines, group.by = "sort_clusters",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[6])
+```
+
+
+```{r  fig.height=15, fig.width=15}
+cowplot::plot_grid(
+DotPlot(GEX.seur, features = check.fig2$Neurotransmission, group.by = "sort_clusters",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 11.5))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[1]),
+
+DotPlot(GEX.seur, features = check.fig2$Othersignaling, group.by = "sort_clusters",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+#scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[2]),
+
+DotPlot(GEX.seur, features = check.fig2$Ionchannels, group.by = "sort_clusters",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[3]),
+
+DotPlot(GEX.seur, features = check.fig2$Adhesionmolecules, group.by = "sort_clusters",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[4]),
+
+DotPlot(GEX.seur, features = check.fig2$Transcriptionfactors, group.by = "sort_clusters",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[5]),
+
+DotPlot(GEX.seur, features = check.fig2$AnnexinsCopines, group.by = "sort_clusters",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[6]),
+ncol = 2)
+```
+
+
+```{r  fig.height=12, fig.width=15}
+cowplot::plot_grid(
+DotPlot(GEX.seur, features = check.fig2$Neurotransmission, group.by = "preAnno",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 11.5))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[1]),
+
+DotPlot(GEX.seur, features = check.fig2$Othersignaling, group.by = "preAnno",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+#scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[2]),
+
+DotPlot(GEX.seur, features = check.fig2$Ionchannels, group.by = "preAnno",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[3]),
+
+DotPlot(GEX.seur, features = check.fig2$Adhesionmolecules, group.by = "preAnno",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[4]),
+
+DotPlot(GEX.seur, features = check.fig2$Transcriptionfactors, group.by = "preAnno",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[5]),
+
+DotPlot(GEX.seur, features = check.fig2$AnnexinsCopines, group.by = "preAnno",
+        cols = c("midnightblue","darkorange1")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 12.15))+ #scale_y_discrete(limits=rev) + 
+  labs(title=names.fig2[6]),
+ncol = 2)
+```
+
+```{r fig.width=8, fig.height=6}
+DotPlot(GEX.seur, features = as.vector(unlist(markers.neur)), group.by = "sort_clusters") + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+```
+
+```{r fig.width=8, fig.height=6}
+DotPlot(GEX.seur, features = as.vector(unlist(markers.neur)), group.by = "preAnno") + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+```
+
+```{r}
+color.pre <- c("#8AB6CE","#678BB1","#3975C1","#4CC1BD",
+               "#C03778","#97BA59","#DFAB16","#BF7E6B",
+               "#D46B35","#BDAE8D","#BD66C4","#2BA956",
+               "#FF8080","#FF8080","#FF8080","#FF0000")
+```
+
+
+```{r echo=FALSE, fig.height=4.5, fig.width=10.8}
+DimPlot(GEX.seur, reduction = "umap",  label = T, group.by = "preAnno", repel = T, label.size = 3.6, cols = color.pre, pt.size = 1) +
+  DimPlot(GEX.seur, reduction = "umap", label = T, group.by = "seurat_clusters")
+```
+
+
+```{r echo=FALSE, fig.height=8.8, fig.width=4.5}
+cowplot::plot_grid(
+DimPlot(GEX.seur, reduction = "umap",  label = T, group.by = "preAnno", repel = T, label.size = 3.6, cols = color.pre, pt.size = 1) + NoLegend(),
+  DimPlot(GEX.seur, reduction = "umap", label = T, group.by = "seurat_clusters") + NoLegend(),
+ncol = 1)
+```
+
+
+```{r}
+#saveRDS(GEX.seur,"GSE149524.P21_rep1.initial.rds")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

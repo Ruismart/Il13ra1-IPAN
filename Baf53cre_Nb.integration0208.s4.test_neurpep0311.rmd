@@ -1,0 +1,266 @@
+---
+output: 
+  html_document: 
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+---
+
+
+# sn-ENS neuron integration      
+
+
+test neuropeptide list from Yinsheng                 
+      
+      
+check if in previous list, if not, try all marker list to sort it                    
+
+
+```{r message=FALSE, warning=FALSE}
+source("/Shared_win/projects/RNA_normal/analysis.10x.r")
+```
+
+
+
+```{r}
+GEX.seur <- readRDS("../integration_Nb5d/sn10x_WYS.sct_anno.s.rds")
+GEX.seur
+```
+
+```{r}
+ref.seur <- readRDS("../../20230704_10x_SZJ/analysis_ref/GSE149524.P21.integration_Anno.s.rds")
+ref.seur
+```
+
+```{r}
+# define intAnno1/2 colors
+color.A1 <- c("#678BB1","#8AB6CE","#3975C1","#669FDF","#4CC1BD",
+              "#BF7E6B","#D46B35","#F19258","#FF8080",
+              "#BDAE8D","#BD66C4","#C03778",
+              "#97BA59","#DFAB16","#2BA956","#9FE727")
+
+color.A2 <- c("#678BB1","#8AB6CE","#3975C1","#669FDF","#4CC1BD",
+              "#BF7E6B","#D46B35","#F19258","#FF8080",
+              "#BDAE8D","#BD66C4","#C03778",
+              "#97BA59","#C4D116", "#DFAB16","#EDE25A", "#2BA956","#9FE727")
+
+
+# define batch/condition colors
+color.cnt <- scales::hue_pal()(4)[c(2,1,4,3)]
+
+color.test1 <- color.cnt[1:2]
+color.test2 <- color.cnt[3:4]
+
+## define feature colors
+# Cell2020     
+material.heat = function(n){
+  colorRampPalette(
+    c(
+      "#283593", # indigo 800
+      "#3F51B5", # indigo
+      "#2196F3", # blue
+      "#00BCD4", # cyan
+      "#4CAF50", # green
+      "#8BC34A", # light green
+      "#CDDC39", # lime
+      "#FFEB3B", # yellow
+      "#FFC107", # amber
+      "#FF9800", # orange
+      "#FF5722"  # deep orange
+    )
+  )(n)
+}
+
+# Immunity2019, na gray
+colors.Immunity <-c("#191970","#121285","#0C0C9A","#0707B0","#0101C5","#0014CF","#0033D3","#0053D8","#0072DD","#0092E1","#00B2E6",
+                  "#00D1EB","#23E8CD","#7AF17B","#D2FA29","#FFEB00","#FFC300","#FF9B00","#FF8400","#FF7800","#FF6B00","#FF5F00","#FF5300",
+                  "#FF4700","#F73B00","#EF2E00","#E62300","#DD1700","#D50B00","#CD0000")
+
+
+# NatNeur2021, sc-neurons
+color.ref <- c("#8AB6CE","#678BB1","#3975C1","#4CC1BD",
+               "#C03778","#97BA59","#DFAB16","#BF7E6B",
+               "#D46B35","#BDAE8D","#BD66C4","#2BA956",
+               "#FF8080","#FF8080","#FF8080","#FF0000")
+```
+
+
+```{r fig.width=11.5,fig.height=4.5}
+cowplot::plot_grid(
+DimPlot(GEX.seur, reduction = "umap", group.by = "intAnno1", label = T, label.size = 3.25,repel = F, pt.size = 0.05,
+        cols = color.A1),
+  DimPlot(GEX.seur, label = F, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "cnt",
+        cols = color.cnt) ,
+rel_widths = c(4.8,5),
+ncol = 2)
+```
+
+
+
+```{r fig.width=12,fig.height=4.5}
+cowplot::plot_grid(
+DimPlot(GEX.seur, reduction = "umap", group.by = "intAnno2", label = T, label.size = 2.65,repel = F, pt.size = 0.05,
+        cols = color.A2),
+  DimPlot(GEX.seur, label = F, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "cnt",
+        cols = color.cnt) ,
+rel_widths = c(4.85,5),
+ncol = 2)
+```
+
+
+```{r fig.width=10.5,fig.height=4.5}
+DimPlot(ref.seur, reduction = "umap", label = T, group.by = "Anno1", cols = color.ref) +
+  DimPlot(ref.seur, reduction = "umap", label = T, group.by = "Anno2")
+```
+
+
+## marker list            
+
+
+### neurpep0311         
+        
+
+```{r}
+neurpep <- read.table("./test_neurpep0311/fromYinsheng/Neuronpeptide gene.txt", header = T, sep = "\t")
+head(neurpep)
+```
+
+
+```{r}
+neurpep.gg <- Hmisc::capitalize(tolower(neurpep$Gene))
+neurpep.gg
+```
+
+```{r}
+# new add
+neurpep.gg <- unique(c(neurpep.gg, 
+                       "Pvalb", "Calb2"," Calb1", "Mnx1", 
+                       "Adcyap1", "Gad2","Avil"))
+neurpep.gg
+```
+
+```{r}
+grep("Pac",rownames(GEX.seur), value = T)
+```
+
+```{r}
+grep("Adcyap1",neurpep.gg,value = T)
+```
+
+
+
+### last final        
+
+
+```{r}
+mk.list <- read.csv("./test_CREmarkers/markers.filt2679.Qsorted.csv",header = T)
+mk.list$cluster <- factor(as.character(mk.list$cluster),
+                          levels = levels(GEX.seur$intAnno1))
+
+head(mk.list)
+```
+
+
+```{r}
+length(neurpep.gg)
+sum(neurpep.gg %in% mk.list$gene)
+```
+
+```{r}
+sum(neurpep.gg %in% rownames(GEX.seur))
+sum(neurpep.gg %in% rownames(ref.seur))
+sum(neurpep.gg %in% rownames(GEX.seur) & neurpep.gg %in% rownames(ref.seur))
+```
+
+
+```{r}
+mk.list %>% filter(gene %in% neurpep.gg) %>% head()
+```
+
+
+
+### check markers            
+
+
+```{r}
+overlap.list <- (mk.list %>% group_by(cluster) %>% 
+                  filter(gene %in% neurpep.gg) %>%
+                   #top_n(n = 60, wt = avg_log2FC) %>%
+                   ungroup() %>%
+  arrange(desc(avg_log2FC*pct.1),gene) %>%
+                             distinct(gene, .keep_all = TRUE) %>%
+                             arrange(cluster,p_val_adj))$gene
+overlap.list
+```
+
+```{r}
+#write.table(overlap.list, "./test_neurpep0311/neurpep.overlap.txt", row.names = F, col.names = F, quote = F)
+```
+
+
+```{r  fig.height=9.6, fig.width=8.4, message=FALSE, warning=FALSE}
+
+  cowplot::plot_grid(
+    DotPlot(GEX.seur, features = overlap.list, group.by = "intAnno1",
+                         cols = c("midnightblue","darkorange1"))  + labs(title="Neurpeptide genes in previous list: 31")+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 9.15))+ scale_y_discrete(limits=rev)+ 
+  scale_color_gradientn(colours  = material.heat(100)),
+    DotPlot(ref.seur, features = overlap.list, group.by = "Anno2",
+                         cols = c("midnightblue","darkorange1"))  + labs(title=paste0("(check in NatNeur2021)") )+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 9.15))+ scale_y_discrete(limits=rev)+ 
+  scale_color_gradientn(colours  = material.heat(100)),
+    ncol = 1
+  )
+
+```
+
+
+```{r  fig.height=9.6, fig.width=13.4, message=FALSE, warning=FALSE}
+
+  cowplot::plot_grid(
+    DotPlot(GEX.seur, features = neurpep.gg[neurpep.gg %in% rownames(GEX.seur)], group.by = "intAnno1",
+                         cols = c("midnightblue","darkorange1"))  + labs(title="Neurpeptide genes in local:72")+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 9.15))+ scale_y_discrete(limits=rev)+ 
+  scale_color_gradientn(colours  = material.heat(100)),
+    DotPlot(ref.seur, features = neurpep.gg[neurpep.gg %in% rownames(ref.seur)],, group.by = "Anno2",
+                         cols = c("midnightblue","darkorange1"))  + labs(title=paste0("(check in NatNeur2021: 80)") )+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 9.15))+ scale_y_discrete(limits=rev)+ 
+  scale_color_gradientn(colours  = material.heat(100)),
+    ncol = 1
+  )
+
+```
+
+
+```{r  fig.height=9.6, fig.width=13.4, message=FALSE, warning=FALSE}
+
+  cowplot::plot_grid(
+    DotPlot(GEX.seur, features = neurpep.gg[neurpep.gg %in% rownames(GEX.seur) & neurpep.gg %in% rownames(ref.seur)], group.by = "intAnno1",
+                         cols = c("midnightblue","darkorange1"))  + labs(title="Neurpeptide genes in both:60")+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 9.15))+ scale_y_discrete(limits=rev)+ 
+  scale_color_gradientn(colours  = material.heat(100)),
+    DotPlot(ref.seur, features = neurpep.gg[neurpep.gg %in% rownames(GEX.seur) & neurpep.gg %in% rownames(ref.seur)],, group.by = "Anno2",
+                         cols = c("midnightblue","darkorange1"))  + labs(title=paste0("(check in NatNeur2021)") )+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1,size = 9.15))+ scale_y_discrete(limits=rev)+ 
+  scale_color_gradientn(colours  = material.heat(100)),
+    ncol = 1
+  )
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

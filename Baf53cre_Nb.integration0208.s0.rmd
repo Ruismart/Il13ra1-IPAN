@@ -1,0 +1,695 @@
+---
+output: 
+  html_document: 
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+---
+
+
+# sn-ENS neuron integration                    
+
+
+for all current Baf53cre Nb data           
+
+
+```{r}
+#### sample info
+## processed obj
+##
+# Nb5d    CL x4    IF x4     
+#     20230704
+#
+# Nb5d    CTL x5 (x1 filtered)   CKO x5 (x2 filtered)
+#     20231223
+#
+##
+```
+
+
+
+```{r message=FALSE, warning=FALSE}
+source("/Shared_win/projects/RNA_normal/analysis.10x.r")
+```
+
+
+## load processed obj              
+
+
+```{r}
+merged.list <- list(Nb5d.PBS_INF=readRDS("I:/Shared_win/projects/20230704_10x_SZJ/analysis_plus.newRef/Baf53Nb.Ileum_IFd5.pure_newAnno20230728.rds"),
+                    Nb5d.CTL_CKO=readRDS("I:/Shared_win/projects/20231223_10x_SZJ/analysis_plus/Ba53Nb.Ileum_Nb5d.pure_newAnno20240208.rds")
+                    )
+
+merged.list
+```
+
+
+```{r}
+lapply(merged.list, function(x){unique(x$FB.info)})
+```
+
+
+```{r}
+lapply(merged.list, function(x){unique(x$cnt)})
+```
+
+
+```{r}
+lapply(merged.list, function(x){unique(x$rep)})
+```
+
+
+### modify sample.info             
+
+rebuild cnt and rep as:            
+          
+Nb5d.PBS              
+Nb5d.INF           
+              
+Nb5d.CTL          
+Nb5d.CKO              
+                    
+                    
+#### Nb5d.PBS_INF                           
+
+```{r}
+#
+merged.list$Nb5d.PBS_INF$sample <- as.character(merged.list$Nb5d.PBS_INF$FB.info)
+
+merged.list$Nb5d.PBS_INF$sample <- as.vector(unlist(sapply(merged.list$Nb5d.PBS_INF$sample, function(x){
+  gsub("Baf53Nb.CL","Nb5d.PBS",x)
+})))
+merged.list$Nb5d.PBS_INF$sample <- as.vector(unlist(sapply(merged.list$Nb5d.PBS_INF$sample, function(x){
+  gsub("Baf53Nb.IF","Nb5d.INF",x)
+})))
+
+merged.list$Nb5d.PBS_INF$cnt <- gsub("1$|2$|3$|4$|5$","",as.character(merged.list$Nb5d.PBS_INF$sample))
+
+merged.list$Nb5d.PBS_INF$rep <- paste0("rep",
+                                       gsub("Nb5d.PBS|Nb5d.INF","",as.character(merged.list$Nb5d.PBS_INF$sample)))
+
+merged.list$Nb5d.PBS_INF$tissue <- "Ileum"
+```
+
+                    
+```{r}
+head(merged.list$Nb5d.PBS_INF$FB.info,10)
+head(merged.list$Nb5d.PBS_INF$sample,10)
+head(merged.list$Nb5d.PBS_INF$cnt,10)
+head(merged.list$Nb5d.PBS_INF$rep,10)
+head(merged.list$Nb5d.PBS_INF$tissue)
+```
+                    
+                    
+#### Nb5d.CTL_CKO                    
+
+```{r}
+#
+merged.list$Nb5d.CTL_CKO$sample <- as.character(merged.list$Nb5d.CTL_CKO$FB.info)
+
+merged.list$Nb5d.CTL_CKO$sample <- as.vector(unlist(sapply(merged.list$Nb5d.CTL_CKO$sample, function(x){
+  gsub("CTL.","Nb5d.CTL",x)
+})))
+merged.list$Nb5d.CTL_CKO$sample <- as.vector(unlist(sapply(merged.list$Nb5d.CTL_CKO$sample, function(x){
+  gsub("CKO.","Nb5d.CKO",x)
+})))
+
+merged.list$Nb5d.CTL_CKO$cnt <- gsub("1$|2$|3$|4$|5$","",as.character(merged.list$Nb5d.CTL_CKO$sample))
+
+
+merged.list$Nb5d.CTL_CKO$sample[merged.list$Nb5d.CTL_CKO$sample %in% "Nb5d.CTL5"] <- "Nb5d.CTL4"
+merged.list$Nb5d.CTL_CKO$sample[merged.list$Nb5d.CTL_CKO$sample %in% "Nb5d.CKO5"] <- "Nb5d.CKO3"
+
+merged.list$Nb5d.CTL_CKO$rep <- paste0("rep",
+                                       gsub("Nb5d.CTL|Nb5d.CKO","",as.character(merged.list$Nb5d.CTL_CKO$sample)))
+
+merged.list$Nb5d.CTL_CKO$tissue <- "Ileum"
+```
+
+                    
+```{r}
+head(merged.list$Nb5d.CTL_CKO$FB.info,10)
+head(merged.list$Nb5d.CTL_CKO$sample,10)
+head(merged.list$Nb5d.CTL_CKO$cnt,10)
+head(merged.list$Nb5d.CTL_CKO$rep,10)
+head(merged.list$Nb5d.CTL_CKO$tissue)
+```
+
+                    
+### merge                   
+                       
+             
+```{r}
+all.batch.merged <- merge(merged.list[[1]],
+                          merged.list[[2]],
+                          merge.data=T)
+all.batch.merged
+```                    
+                    
+```{r}
+rm(merged.list)
+gc()
+```                    
+                    
+```{r}
+unique(all.batch.merged$cnt)
+```                    
+                    
+```{r}
+unique(all.batch.merged$rep)
+```
+                    
+                    
+```{r}
+all.batch.merged$cnt <- factor(as.character(all.batch.merged$cnt),
+                               levels = c("Nb5d.PBS","Nb5d.INF",
+                                          "Nb5d.CTL","Nb5d.CKO"))
+head(all.batch.merged$cnt)
+```                    
+
+
+```{r}
+# modify orig.ident
+all.batch.merged$orig.ident <- as.character(all.batch.merged$cnt)
+
+all.batch.merged$orig.ident[all.batch.merged$orig.ident %in% c("Nb5d.PBS","Nb5d.INF")] <- "Nb5d.PBS_INF"
+all.batch.merged$orig.ident[all.batch.merged$orig.ident %in% c("Nb5d.CTL","Nb5d.CKO")] <- "Nb5d.CTL_CKO"
+
+all.batch.merged$orig.ident <- factor(all.batch.merged$orig.ident,
+                                      levels = c("Nb5d.PBS_INF","Nb5d.CTL_CKO"))
+
+head(all.batch.merged$orig.ident)
+```
+
+```{r}
+table(all.batch.merged@meta.data[,c("orig.ident","cnt")])
+```
+
+```{r}
+table(all.batch.merged@meta.data[,c("orig.ident","sample")])
+```
+
+                    
+## Integration                         
+
+```{r}
+#Idents(all.batch.merged) <- "cnt"
+Idents(all.batch.merged) <- "orig.ident"
+
+head(all.batch.merged@active.ident)
+```                    
+
+                    
+                    
+```{r}
+gc()
+```
+
+
+```{r}
+all.batch.merged
+```
+
+
+### SCT              
+
+```{r}
+batchcor.seu.list <- list()
+
+#for(ttt in levels(all.batch.merged$cnt)){
+#  ttt.seu <- subset(all.batch.merged, subset=cnt == ttt)
+#  Idents(ttt.seu) <- "rep"
+for(ttt in levels(all.batch.merged$orig.ident)){
+  ttt.seu <- subset(all.batch.merged, subset=orig.ident == ttt)
+  Idents(ttt.seu) <- "sample"
+  ttt.seu <- SCTransform(ttt.seu, variable.features.n = 3000, vst.flavor="v2",
+                         return.only.var.genes = FALSE)
+  batchcor.seu.list[[ttt]] <- ttt.seu
+}
+```
+
+
+```{r}
+gc()
+```
+
+
+```{r}
+rm(ttt.seu)
+rm(all.batch.merged)
+gc()
+```
+
+
+```{r}
+feature.raw <- SelectIntegrationFeatures(object.list = batchcor.seu.list, nfeatures = 3000)
+head(feature.raw,300)
+```
+
+
+```{r}
+DIG <- grep("^mt-|^Tra|^Trb|^Trg|^Trd|^Tcr|^Igm|^Igh|^Igk|^Igl|Jchain|Mzb1|Vpreb|^Hsp|^Rps|^Rpl|Hbb-|Hba-|^Dnaj|^Jun|^Fos|^AY|^AA|^AC|^AW|^BC|^Gm|^Hist|Lars2|Rik$|-ps",
+            feature.raw,value = T)
+
+# gender-relaged genes
+GRG <- c("Xist","Tsix","Uty","Ddx3y","Eif2s3y","Kdm5d")
+
+CC_gene <- Hmisc::capitalize(tolower(as.vector(unlist(cc.genes.updated.2019))))
+```
+
+
+```{r}
+DIG
+```
+
+```{r}
+CC_gene
+```
+
+
+```{r}
+features.filt <- setdiff(feature.raw, c(DIG,CC_gene,GRG))
+length(features.filt)
+head(features.filt,300)
+```
+
+
+```{r}
+length(feature.raw)
+length(features.filt)
+```
+
+```{r}
+GRG %in% feature.raw
+GRG %in% features.filt
+```
+
+
+
+
+### anchors                    
+            
+            
+```{r}
+all.anchors <- FindIntegrationAnchors(object.list = batchcor.seu.list,
+                                      dims = 1:50,
+                                      anchor.features = features.filt)
+```
+
+
+```{r}
+all.anchors
+```
+
+
+### Integration              
+
+```{r}
+all.anchors <- IntegrateData(anchorset = all.anchors, dims = 1:50)
+```
+
+
+```{r}
+all.anchors
+```
+
+
+```{r}
+all.anchors@assays$SCT@SCTModel.list
+```
+
+
+```{r}
+rm(batchcor.seu.list)
+gc()
+```
+
+```{r}
+#head(all.anchors$orig.ident)
+#unique(all.anchors$orig.ident)
+```
+
+```{r}
+unique(all.anchors$cnt)
+```
+
+
+```{r}
+#
+#all.anchors$orig.ident <- as.character(all.anchors$cnt)
+
+#all.anchors$orig.ident[all.anchors$orig.ident %in% c("Nb5d.PBS","Nb5d.INF")] <- "Nb5d.PBS_INF"
+#all.anchors$orig.ident[all.anchors$orig.ident %in% c("Nb5d.CTL","Nb5d.CKO")] <- "Nb5d.CTL_CKO"
+
+all.anchors$orig.ident <- factor(all.anchors$orig.ident,
+                                 levels = c("Nb5d.PBS_INF","Nb5d.CTL_CKO"))
+
+# set condition
+#     PBS as PBS_CTL
+#     INF as INF_CTL
+#     CTL as INF_CTL
+#     CKO as INF_CKO
+
+all.anchors$condition <- as.character(all.anchors$cnt)
+
+all.anchors$condition[all.anchors$condition %in% c("Nb5d.PBS")] <- "PBS_CTL"
+all.anchors$condition[all.anchors$condition %in% c("Nb5d.INF","Nb5d.CTL")] <- "INF_CTL"
+all.anchors$condition[all.anchors$condition %in% c("Nb5d.CKO")] <- "INF_CKO"
+
+all.anchors$condition <- factor(all.anchors$condition,
+                                levels = c("PBS_CTL","INF_CTL","INF_CKO"))
+```
+
+
+```{r}
+table(all.anchors@meta.data[,c("cnt","condition")])
+```
+
+
+```{r}
+table(all.anchors@meta.data[,c("cnt","orig.ident")])
+```
+
+
+
+```{r fig.width=12, fig.height=7.5}
+VlnPlot(all.anchors, features = GRG, group.by = "sample", assay = "RNA")
+```
+
+
+all males          
+
+
+#### clustering               
+
+```{r}
+all.anchors <- ScaleData(object = all.anchors, verbose = TRUE, 
+                         vars.to.regress = c("percent.mt","percent.rb","nCount_RNA"))
+```
+
+
+```{r}
+# sample condition to regress
+#   cnt ?
+#   orig.idnet ?
+#   condition ?
+#   sex ?
+```
+
+
+
+```{r}
+gc()
+```
+
+
+```{r}
+length(all.anchors@assays$integrated@var.features)
+```
+
+
+```{r}
+all.anchors <- RunPCA(all.anchors, do.print = TRUE,
+                      features = all.anchors@assays$integrated@var.features,
+                      seed.use = 133,
+                      npcs = 100,
+                      #ndims.print = 1,
+                      verbose = T)
+```
+
+```{r fig.width=12,fig.height=18}
+DimHeatmap(all.anchors, dims = 1:12, cells = 1500, balanced = TRUE,ncol = 4)
+```
+
+
+```{r}
+ElbowPlot(all.anchors, ndims = 100)
+```
+
+
+```{r}
+ElbowPlot(all.anchors, ndims = 50)
+```
+
+
+## Integrated                
+
+
+```{r paged.print=FALSE}
+
+all.anchors@meta.data[,grep("FB.info|FB.new|snn|pANN|cluster|sort|cnt1|cnt2|preAnno|Anno1|Anno2|Anno3|snn|Doublet",colnames(all.anchors@meta.data))] <- NULL
+
+head(all.anchors@meta.data)
+```
+
+
+```{r}
+DefaultAssay(all.anchors) <- "integrated"
+PCsct <- 1:25
+```
+
+
+```{r}
+all.anchors <- FindNeighbors(all.anchors, k.param = 20, dims = PCsct, compute.SNN = T, reduction = 'pca', verbose = T)
+all.anchors <- FindClusters(all.anchors, dims.use = PCsct, algorithm = 1, save.SNN =T, resolution =2, reduction = 'pca', verbose = T)
+```
+
+
+```{r}
+all.anchors <- RunTSNE(object = all.anchors, assay = "integrated", seed.use = 127, dims = PCsct, complexity=100)
+all.anchors <- RunUMAP(object = all.anchors, assay = "integrated", seed.use = 998, dims = PCsct, n.neighbors = 20, min.dist = 0.3)
+```
+
+
+```{r fig.width=11.5, fig.height=4.5}
+DimPlot(all.anchors, label = T, pt.size = 0.05, repel = F, reduction = 'tsne', group.by = "seurat_clusters") +
+DimPlot(all.anchors, label = T, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "seurat_clusters")
+```
+
+
+```{r fig.width=10.8, fig.height=4.5}
+DimPlot(all.anchors, label = T, pt.size = 0.05, repel = F, reduction = 'tsne', group.by = "newAnno") +
+DimPlot(all.anchors, label = T, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "newAnno")
+```
+
+```{r}
+color.cnt <- scales::hue_pal()(4)[c(2,1,4,3)]
+color.cnt
+```
+
+
+
+```{r}
+all.anchors$cnt <- factor(as.character(all.anchors$cnt),
+                            levels = c("Nb5d.PBS","Nb5d.INF",
+                                       "Nb5d.CTL","Nb5d.CKO"))
+
+```
+
+
+```{r  fig.width=12.6, fig.height=3.9}
+DimPlot(all.anchors, label = F, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "cnt", split.by = "cnt", ncol = 4, cols = color.cnt)
+```
+
+
+```{r fig.width=10.8, fig.height=4.5}
+DimPlot(all.anchors, label = T, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "newAnno") +
+DimPlot(all.anchors, label = F, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "cnt",cols = color.cnt)
+```
+
+
+
+```{r fig.width=10.8, fig.height=4.5}
+DimPlot(subset(all.anchors, subset = cnt %in% c("Nb5d.PBS","Nb5d.INF")), label = F, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "cnt", cols = color.cnt[1:2]) +
+DimPlot(subset(all.anchors, subset = cnt %in% c("Nb5d.CTL","Nb5d.CKO")), label = F, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "cnt", cols = color.cnt[3:4])
+```
+
+
+
+```{r eval=FALSE, include=FALSE}
+#saveRDS(all.anchors, "sn10x_WYS.sct_anno.rds")
+#all.anchors <- readRDS("sn10x_WYS.sct_anno.rds")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

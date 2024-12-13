@@ -1,0 +1,785 @@
+---
+output: 
+  html_document: 
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+---
+
+
+# sn-ENS neuron integration      
+
+
+set cutoffs for DEGs' overlap and signature scores            
+       
+       
+cut2: padj 0.01  log2FC > log2(1.5) (|FC|>1.5)         
+
+           
+```{r}
+# cut2
+cut.padj = 0.01
+cut.log2FC = log2(1.5)  
+  
+cut.pct1 = 0.1
+```
+           
+           
+
+```{r message=FALSE, warning=FALSE}
+source("/Shared_win/projects/RNA_normal/analysis.10x.r")
+```
+
+
+## load integrated obj                      
+
+
+```{r}
+GEX.seur <- readRDS("../integration_Nb5d/sn10x_WYS.sct_anno.s.rds")
+GEX.seur
+```
+
+```{r}
+#ref.seur <- readRDS("../../20230704_10x_SZJ/analysis_ref/GSE149524.P21.integration_Anno.s.rds")
+#ref.seur
+```
+
+
+```{r}
+# define intAnno1/2 colors
+color.A1 <- c("#678BB1","#8AB6CE","#3975C1","#669FDF","#4CC1BD",
+              "#BF7E6B","#D46B35","#F19258","#FF8080",
+              "#BDAE8D","#BD66C4","#C03778",
+              "#97BA59","#DFAB16","#2BA956","#9FE727")
+
+color.A2 <- c("#678BB1","#8AB6CE","#3975C1","#669FDF","#4CC1BD",
+              "#BF7E6B","#D46B35","#F19258","#FF8080",
+              "#BDAE8D","#BD66C4","#C03778",
+              "#97BA59","#C4D116", "#DFAB16","#EDE25A", "#2BA956","#9FE727")
+
+
+# define batch/condition colors
+color.cnt <- scales::hue_pal()(4)[c(2,1,4,3)]
+
+color.test1 <- color.cnt[1:2]
+color.test2 <- color.cnt[3:4]
+
+## define feature colors
+# Cell2020     
+material.heat = function(n){
+  colorRampPalette(
+    c(
+      "#283593", # indigo 800
+      "#3F51B5", # indigo
+      "#2196F3", # blue
+      "#00BCD4", # cyan
+      "#4CAF50", # green
+      "#8BC34A", # light green
+      "#CDDC39", # lime
+      "#FFEB3B", # yellow
+      "#FFC107", # amber
+      "#FF9800", # orange
+      "#FF5722"  # deep orange
+    )
+  )(n)
+}
+
+# Immunity2019, na gray
+colors.Immunity <-c("#191970","#121285","#0C0C9A","#0707B0","#0101C5","#0014CF","#0033D3","#0053D8","#0072DD","#0092E1","#00B2E6",
+                  "#00D1EB","#23E8CD","#7AF17B","#D2FA29","#FFEB00","#FFC300","#FF9B00","#FF8400","#FF7800","#FF6B00","#FF5F00","#FF5300",
+                  "#FF4700","#F73B00","#EF2E00","#E62300","#DD1700","#D50B00","#CD0000")
+
+
+# NatNeur2021, sc-neurons
+color.ref <- c("#8AB6CE","#678BB1","#3975C1","#4CC1BD",
+               "#C03778","#97BA59","#DFAB16","#BF7E6B",
+               "#D46B35","#BDAE8D","#BD66C4","#2BA956",
+               "#FF8080","#FF8080","#FF8080","#FF0000")
+```
+
+
+
+```{r fig.width=11.5,fig.height=4.5}
+cowplot::plot_grid(
+DimPlot(GEX.seur, reduction = "umap", group.by = "intAnno1", label = T, label.size = 3.25,repel = F, pt.size = 0.05,
+        cols = color.A1),
+  DimPlot(GEX.seur, label = F, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "cnt",
+        cols = color.cnt) ,
+rel_widths = c(4.8,5),
+ncol = 2)
+```
+
+
+
+```{r fig.width=12,fig.height=4.5}
+cowplot::plot_grid(
+DimPlot(GEX.seur, reduction = "umap", group.by = "intAnno2", label = T, label.size = 2.65,repel = F, pt.size = 0.05,
+        cols = color.A2),
+  DimPlot(GEX.seur, label = F, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "cnt",
+        cols = color.cnt) ,
+rel_widths = c(4.85,5),
+ncol = 2)
+```
+
+
+### PBS_INF             
+
+
+```{r}
+test1.seur <- subset(GEX.seur, subset= cnt %in% c("Nb5d.PBS","Nb5d.INF"))
+test1.seur
+```
+
+
+
+```{r fig.width=11.5,fig.height=4.5}
+cowplot::plot_grid(
+DimPlot(test1.seur, reduction = "umap", group.by = "intAnno1", label = T, label.size = 3.25,repel = F, pt.size = 0.15,
+        cols = color.A1),
+  DimPlot(test1.seur, label = F, pt.size = 0.15, repel = F, reduction = 'umap', group.by = "cnt",
+        cols = color.test1) ,
+rel_widths = c(4.8,5),
+ncol = 2)
+```
+
+
+
+```{r fig.width=12,fig.height=4.5}
+cowplot::plot_grid(
+DimPlot(test1.seur, reduction = "umap", group.by = "intAnno2", label = T, label.size = 2.65,repel = F, pt.size = 0.15,
+        cols = color.A2),
+  DimPlot(test1.seur, label = F, pt.size = 0.15, repel = F, reduction = 'umap', group.by = "cnt",
+        cols = color.test1) ,
+rel_widths = c(4.85,5),
+ncol = 2)
+```
+              
+### CTL_CKO             
+
+
+```{r}
+test2.seur <- subset(GEX.seur, subset= cnt %in% c("Nb5d.CTL","Nb5d.CKO"))
+test2.seur
+```
+
+```{r fig.width=11.5,fig.height=4.5}
+cowplot::plot_grid(
+DimPlot(test2.seur, reduction = "umap", group.by = "intAnno1", label = T, label.size = 3.25,repel = F, pt.size = 0.15,
+        cols = color.A1),
+  DimPlot(test2.seur, label = F, pt.size = 0.15, repel = F, reduction = 'umap', group.by = "cnt",
+        cols = color.test2) ,
+rel_widths = c(4.8,5),
+ncol = 2)
+```
+
+
+
+```{r fig.width=12,fig.height=4.5}
+cowplot::plot_grid(
+DimPlot(test2.seur, reduction = "umap", group.by = "intAnno2", label = T, label.size = 2.65,repel = F, pt.size = 0.15,
+        cols = color.A2),
+  DimPlot(test2.seur, label = F, pt.size = 0.15, repel = F, reduction = 'umap', group.by = "cnt",
+        cols = color.test2) ,
+rel_widths = c(4.85,5),
+ncol = 2)
+```
+
+
+### DEGs                        
+
+
+```{r}
+# DEGs 
+df_test1.DEGs_new <- read.csv("../integration_Nb5d/Baf53cre_Nb.DEGs.PBSvsINF.intAnno2.csv")
+df_test1.DEGs_new$cluster <- factor(df_test1.DEGs_new$cluster,
+                                    levels = c("Nb5d.PBS","Nb5d.INF"))
+head(df_test1.DEGs_new)
+```
+
+
+```{r}
+# DEGs 
+df_test2.DEGs_new <- read.csv("../integration_Nb5d/Baf53cre_Nb.DEGs.CTLvsCKO.intAnno2.csv")
+df_test2.DEGs_new$cluster <- factor(df_test2.DEGs_new$cluster,
+                                    levels = c("Nb5d.CTL","Nb5d.CKO"))
+head(df_test2.DEGs_new)
+```
+
+
+
+
+```{r}
+neur.clusters <- grep("EMN|IMN|IN|IPAN",levels(GEX.seur$intAnno2), value = T)
+neur.clusters
+```
+
+```{r}
+#
+all_new <- neur.clusters
+all_new
+```
+
+```{r}
+#
+list_new <- list()
+list_new[["All"]] <- all_new
+
+list_new[["EMNs"]] <- grep("EMN",all_new,value = T)
+list_new[["IMNs"]] <- grep("IMN",all_new,value = T)
+
+list_new[["IPAN1"]] <- grep("IPAN1",all_new,value = T)
+list_new[["IPAN2"]] <- grep("IPAN2",all_new,value = T)
+
+#list_new[["INs"]] <- grep("IN",all_new,value = T)
+#list_new[["IPANs"]] <- grep("IPAN",all_new,value = T)
+
+for(NN in all_new){
+  list_new[[NN]] <- NN
+}
+
+names_new <- names(list_new)
+list_new
+```
+
+```{r}
+names_new
+```
+
+
+## overlap              
+
+
+```{r}
+neur.ol <- c("IPAN1","IPAN1.1","IPAN1.2","IPAN2","IPAN2.1")
+neur.ol
+```
+
+
+```{r}
+#
+test1_up.list <- lapply(neur.ol,function(x){NA})
+names(test1_up.list) <- neur.ol
+
+
+for(NN in neur.ol){
+  
+  test1_up.list[[NN]] <- list()
+  test1_up.list[[NN]][["Nb5d.PBS"]] <- (df_test1.DEGs_new %>% filter(intAnno2 == NN &
+                                                                    cluster == "Nb5d.PBS" &
+                                                                    p_val_adj < cut.padj & 
+                                                                    abs(avg_log2FC) > cut.log2FC & 
+                                                                    pct.1 > cut.pct1))$gene
+  test1_up.list[[NN]][["Nb5d.INF"]] <- (df_test1.DEGs_new %>% filter(intAnno2 == NN &
+                                                                    cluster == "Nb5d.INF" &
+                                                                    p_val_adj < cut.padj & 
+                                                                    abs(avg_log2FC) > cut.log2FC & 
+                                                                    pct.1 > cut.pct1))$gene
+}
+
+#test1_up.list
+
+#
+test2_up.list <- lapply(neur.ol,function(x){NA})
+names(test2_up.list) <- neur.ol
+
+
+for(NN in neur.ol){
+  
+  test2_up.list[[NN]] <- list()
+  test2_up.list[[NN]][["Nb5d.CTL"]] <- (df_test2.DEGs_new %>% filter(intAnno2 == NN &
+                                                                    cluster == "Nb5d.CTL" &
+                                                                    p_val_adj < cut.padj & 
+                                                                    abs(avg_log2FC) > cut.log2FC & 
+                                                                    pct.1 > cut.pct1))$gene
+  test2_up.list[[NN]][["Nb5d.CKO"]] <- (df_test2.DEGs_new %>% filter(intAnno2 == NN &
+                                                                    cluster == "Nb5d.CKO" &
+                                                                    p_val_adj < cut.padj & 
+                                                                    abs(avg_log2FC) > cut.log2FC & 
+                                                                    pct.1 > cut.pct1))$gene
+}
+
+#test2_up.list
+```
+
+
+```{r}
+library(UpSetR)
+```
+
+
+```{r fig.width=9, fig.height=5}
+#
+xx=neur.ol[1]
+  upset(fromList(c(test1_up.list[[xx]],
+                   test2_up.list[[xx]])),
+      order.by = 'freq', nsets = 6, point.size=3.5, line.size =1, text.scale = 2)  
+  grid::grid.text(xx,x = 0.65, y=0.95, gp=grid::gpar(fontsize=20))
+
+#
+xx=neur.ol[2]
+  upset(fromList(c(test1_up.list[[xx]],
+                   test2_up.list[[xx]])),
+      order.by = 'freq', nsets = 6, point.size=3.5, line.size =1, text.scale = 2)  
+  grid::grid.text(xx,x = 0.65, y=0.95, gp=grid::gpar(fontsize=20))
+#
+xx=neur.ol[3]
+  upset(fromList(c(test1_up.list[[xx]],
+                   test2_up.list[[xx]])),
+      order.by = 'freq', nsets = 6, point.size=3.5, line.size =1, text.scale = 2)  
+  grid::grid.text(xx,x = 0.65, y=0.95, gp=grid::gpar(fontsize=20))
+#
+xx=neur.ol[4]
+  upset(fromList(c(test1_up.list[[xx]],
+                   test2_up.list[[xx]])),
+      order.by = 'freq', nsets = 6, point.size=3.5, line.size =1, text.scale = 2)  
+  grid::grid.text(xx,x = 0.65, y=0.95, gp=grid::gpar(fontsize=20))
+#
+xx=neur.ol[5]
+  upset(fromList(c(test1_up.list[[xx]],
+                   test2_up.list[[xx]])),
+      order.by = 'freq', nsets = 6, point.size=3.5, line.size =1, text.scale = 2)  
+  grid::grid.text(xx,x = 0.65, y=0.95, gp=grid::gpar(fontsize=20))
+#
+
+
+```
+
+
+#### save       
+
+```{r eval=FALSE, include=FALSE}
+
+# manually choose [1]->[11], while the code is not working in a parallel way
+xx=neur.ol[5]
+  
+  pdf(paste0("./figures.integration/DEGs.new/overlap.cut2/overlap.cut2.",xx,".pdf"),
+      width = 9, height = 5)
+  upset(fromList(c(test1_up.list[[xx]],
+                   test2_up.list[[xx]])),
+      order.by = 'freq', nsets = 6, point.size=3.5, line.size =1, text.scale = 2)
+  
+  grid::grid.text(xx,x = 0.65, y=0.95, gp=grid::gpar(fontsize=20))
+  dev.off()
+  
+
+```
+
+
+```{r}
+test3_up.list <- list()
+test3_up.list[["INFxCTL"]] <- list()
+test3_up.list[["PBSxCKO"]] <- list()
+for(NN in c("IPAN1","IPAN1.1","IPAN1.2","IPAN2","IPAN2.1")){
+  
+  test3_up.list[["INFxCTL"]][[NN]] <- intersect(test1_up.list[[NN]][["Nb5d.INF"]],test2_up.list[[NN]][["Nb5d.CTL"]])
+  test3_up.list[["PBSxCKO"]][[NN]] <- intersect(test1_up.list[[NN]][["Nb5d.PBS"]],test2_up.list[[NN]][["Nb5d.CKO"]])
+}
+test3_up.list
+```
+
+
+
+```{r eval=FALSE, include=FALSE}
+## save DEG list 
+# clusters to consider
+
+
+# overlap list: INFxCTL   PBSxCKO
+#     in  All  IPAN1  IPAN1.1  IPAN1.2  IPAN2  IPAN2.1
+for(NN in c("IPAN1","IPAN1.1","IPAN1.2","IPAN2","IPAN2.1")){
+  for(XX in c("INFxCTL","PBSxCKO")){
+    write.table(test3_up.list[[XX]][[NN]], paste0("./figures.integration/DEGs.new/overlap.list.cut2/overlap.cut2.",NN,"_",XX,".txt"), row.names = F, col.names = F, quote = F)
+  }
+}
+
+
+```
+
+
+## sig.scores           
+
+
+```{r}
+# scoring DEGs.IPAN1
+GEX.seur <- add_geneset_score(obj = GEX.seur,
+                              Assay = "SCT",
+                              geneset = test1_up.list$IPAN1$Nb5d.PBS,
+                              setname = "cut2.score.IPAN1_PBSup")
+GEX.seur <- add_geneset_score(obj = GEX.seur,
+                              Assay = "SCT",
+                              geneset = test1_up.list$IPAN1$Nb5d.INF,
+                              setname = "cut2.score.IPAN1_INFup")
+GEX.seur <- add_geneset_score(obj = GEX.seur,
+                              Assay = "SCT",
+                              geneset = test2_up.list$IPAN1$Nb5d.CTL,
+                              setname = "cut2.score.IPAN1_CTLup")
+GEX.seur <- add_geneset_score(obj = GEX.seur,
+                              Assay = "SCT",
+                              geneset = test2_up.list$IPAN1$Nb5d.CKO,
+                              setname = "cut2.score.IPAN1_CKOup")
+```
+
+
+```{r}
+# scoring DEGs.IPAN2
+GEX.seur <- add_geneset_score(obj = GEX.seur,
+                              Assay = "SCT",
+                              geneset = test1_up.list$IPAN2$Nb5d.PBS,
+                              setname = "cut2.score.IPAN2_PBSup")
+GEX.seur <- add_geneset_score(obj = GEX.seur,
+                              Assay = "SCT",
+                              geneset = test1_up.list$IPAN2$Nb5d.INF,
+                              setname = "cut2.score.IPAN2_INFup")
+GEX.seur <- add_geneset_score(obj = GEX.seur,
+                              Assay = "SCT",
+                              geneset = test2_up.list$IPAN2$Nb5d.CTL,
+                              setname = "cut2.score.IPAN2_CTLup")
+GEX.seur <- add_geneset_score(obj = GEX.seur,
+                              Assay = "SCT",
+                              geneset = test2_up.list$IPAN2$Nb5d.CKO,
+                              setname = "cut2.score.IPAN2_CKOup")
+```
+
+
+### score.IPAN1            
+
+
+#### IPAN1 only            
+
+```{r}
+vln.DEGs_IPAN1 <- list(PBSvsINF=list(),
+                       CTLvsCKO=list())
+```
+
+
+```{r fig.height=4, fig.width=2.8, message=FALSE, warning=FALSE}
+
+# IPAN1_PBSup
+x = "IPAN1_PBSup"
+vln.DEGs_IPAN1[["PBSvsINF"]][[x]] <- VlnPlot(subset(GEX.seur, subset= orig.ident == "Nb5d.PBS_INF" & intAnno1 %in% c("IPAN1")), 
+                                             features = paste0("cut2.score.",x), group.by = "cnt", cols = color.test1, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.2, shape=16, width = 0.2, size = 0.25) & labs(x = "IPAN1 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.1,1.05)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF")),
+                               label.y = c(0.9),
+                               size=2.75
+                               ) & theme(plot.title = element_text(size=10.5))
+
+# IPAN1_INFup
+x = "IPAN1_INFup"
+vln.DEGs_IPAN1[["PBSvsINF"]][[x]] <- VlnPlot(subset(GEX.seur, subset= orig.ident == "Nb5d.PBS_INF" & intAnno1 %in% c("IPAN1")), 
+                                             features = paste0("cut2.score.",x), group.by = "cnt", cols = color.test1, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.2, shape=16, width = 0.2, size = 0.25) & labs(x = "IPAN1 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.1,0.75)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF")),
+                               label.y = c(0.65),
+                               size=2.75
+                               ) & theme(plot.title = element_text(size=10.5))
+
+# IPAN1_CTLup
+x = "IPAN1_CTLup"
+vln.DEGs_IPAN1[["PBSvsINF"]][[x]] <- VlnPlot(subset(GEX.seur, subset= orig.ident == "Nb5d.PBS_INF" & intAnno1 %in% c("IPAN1")), 
+                                             features = paste0("cut2.score.",x), group.by = "cnt", cols = color.test1, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.2, shape=16, width = 0.2, size = 0.25) & labs(x = "IPAN1 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.1,0.85)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF")),
+                               label.y = c(0.78),
+                               size=2.75
+                               ) & theme(plot.title = element_text(size=10.5))
+
+
+
+# IPAN1_CKOup
+x = "IPAN1_CKOup"
+vln.DEGs_IPAN1[["PBSvsINF"]][[x]] <- VlnPlot(subset(GEX.seur, subset= orig.ident == "Nb5d.PBS_INF" & intAnno1 %in% c("IPAN1")), 
+                                             features = paste0("cut2.score.",x), group.by = "cnt", cols = color.test1, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.2, shape=16, width = 0.2, size = 0.25) & labs(x = "IPAN1 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.2,1.45)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF")),
+                               label.y = c(1.25),
+                               size=2.75
+                               ) & theme(plot.title = element_text(size=10.5))
+vln.DEGs_IPAN1[["PBSvsINF"]]
+```
+
+```{r fig.height=4, fig.width=2.8, message=FALSE, warning=FALSE}
+
+# IPAN1_PBSup
+x = "IPAN1_PBSup"
+vln.DEGs_IPAN1[["CTLvsCKO"]][[x]] <- VlnPlot(subset(GEX.seur, subset= orig.ident == "Nb5d.CTL_CKO" & intAnno1 %in% c("IPAN1")), 
+                                             features = paste0("cut2.score.",x), group.by = "cnt", cols = color.test2, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.2, shape=16, width = 0.2, size = 0.25) & labs(x = "IPAN1 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.1,1.05)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.CTL","Nb5d.CKO")),
+                               label.y = c(0.9),
+                               size=2.75
+                               ) & theme(plot.title = element_text(size=10.5))
+
+# IPAN1_INFup
+x = "IPAN1_INFup"
+vln.DEGs_IPAN1[["CTLvsCKO"]][[x]] <- VlnPlot(subset(GEX.seur, subset= orig.ident == "Nb5d.CTL_CKO" & intAnno1 %in% c("IPAN1")), 
+                                             features = paste0("cut2.score.",x), group.by = "cnt", cols = color.test2, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.2, shape=16, width = 0.2, size = 0.25) & labs(x = "IPAN1 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.1,0.65)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.CTL","Nb5d.CKO")),
+                               label.y = c(0.58),
+                               size=2.75
+                               ) & theme(plot.title = element_text(size=10.5))
+
+# IPAN1_CTLup
+x = "IPAN1_CTLup"
+vln.DEGs_IPAN1[["CTLvsCKO"]][[x]] <- VlnPlot(subset(GEX.seur, subset= orig.ident == "Nb5d.CTL_CKO" & intAnno1 %in% c("IPAN1")), 
+                                             features = paste0("cut2.score.",x), group.by = "cnt", cols = color.test2, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.2, shape=16, width = 0.2, size = 0.25) & labs(x = "IPAN1 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.1,0.85)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.CTL","Nb5d.CKO")),
+                               label.y = c(0.75),
+                               size=2.75
+                               ) & theme(plot.title = element_text(size=10.5))
+
+
+
+# IPAN1_CKOup
+x = "IPAN1_CKOup"
+vln.DEGs_IPAN1[["CTLvsCKO"]][[x]] <- VlnPlot(subset(GEX.seur, subset= orig.ident == "Nb5d.CTL_CKO" & intAnno1 %in% c("IPAN1")), 
+                                             features = paste0("cut2.score.",x), group.by = "cnt", cols = color.test2, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.2, shape=16, width = 0.2, size = 0.25) & labs(x = "IPAN1 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.15,1.55)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.CTL","Nb5d.CKO")),
+                               label.y = c(1.4),
+                               size=2.75
+                               ) & theme(plot.title = element_text(size=10.5))
+vln.DEGs_IPAN1[["CTLvsCKO"]]
+```
+
+
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+# 
+pdf("./figures.integration/DEGs.new/sig.DEGs.cut2/vln.PBSvsINF.DEGcut2.scoreIPAN1.IPAN1only.pdf",
+       width = 5, height = 8)
+cowplot::plot_grid(plotlist = vln.DEGs_IPAN1$PBSvsINF, ncol = 2)
+dev.off()
+
+# 
+pdf("./figures.integration/DEGs.new/sig.DEGs.cut2/vln.CTLvsCKO.DEGcut2.scoreIPAN1.IPAN1only.pdf",
+       width = 5, height = 8)
+cowplot::plot_grid(plotlist = vln.DEGs_IPAN1$CTLvsCKO, ncol = 2)
+dev.off()
+```
+
+
+
+### score.IPAN2                   
+
+
+#### IPAN2 only                
+
+
+```{r}
+vln.DEGs_IPAN2 <- list(PBSvsINF=list(),
+                       CTLvsCKO=list())
+```
+
+
+```{r fig.height=4, fig.width=2.8, message=FALSE, warning=FALSE}
+
+# IPAN2_PBSup
+x = "IPAN2_PBSup"
+vln.DEGs_IPAN2[["PBSvsINF"]][[x]] <- VlnPlot(subset(GEX.seur, subset= orig.ident == "Nb5d.PBS_INF" & intAnno1 %in% c("IPAN2")), 
+                                             features = paste0("cut2.score.",x), group.by = "cnt", cols = color.test1, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.2, shape=16, width = 0.2, size = 0.25) & labs(x = "IPAN2 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.3,1.3)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF")),
+                               label.y = c(1.18),
+                               size=2.75
+                               ) & theme(plot.title = element_text(size=10.5))
+
+# IPAN2_INFup
+x = "IPAN2_INFup"
+vln.DEGs_IPAN2[["PBSvsINF"]][[x]] <- VlnPlot(subset(GEX.seur, subset= orig.ident == "Nb5d.PBS_INF" & intAnno1 %in% c("IPAN2")), 
+                                             features = paste0("cut2.score.",x), group.by = "cnt", cols = color.test1, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.2, shape=16, width = 0.2, size = 0.25) & labs(x = "IPAN2 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.15,0.8)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF")),
+                               label.y = c(0.7),
+                               size=2.75
+                               ) & theme(plot.title = element_text(size=10.5))
+
+# IPAN2_CTLup
+x = "IPAN2_CTLup"
+vln.DEGs_IPAN2[["PBSvsINF"]][[x]] <- VlnPlot(subset(GEX.seur, subset= orig.ident == "Nb5d.PBS_INF" & intAnno1 %in% c("IPAN2")), 
+                                             features = paste0("cut2.score.",x), group.by = "cnt", cols = color.test1, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.2, shape=16, width = 0.2, size = 0.25) & labs(x = "IPAN2 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.15,1)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF")),
+                               label.y = c(0.85),
+                               size=2.75
+                               ) & theme(plot.title = element_text(size=10.5))
+
+
+
+# IPAN2_CKOup
+x = "IPAN2_CKOup"
+vln.DEGs_IPAN2[["PBSvsINF"]][[x]] <- VlnPlot(subset(GEX.seur, subset= orig.ident == "Nb5d.PBS_INF" & intAnno1 %in% c("IPAN2")), 
+                                             features = paste0("cut2.score.",x), group.by = "cnt", cols = color.test1, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.2, shape=16, width = 0.2, size = 0.25) & labs(x = "IPAN2 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.56,1.65)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.PBS","Nb5d.INF")),
+                               label.y = c(1.52),
+                               size=2.75
+                               ) & theme(plot.title = element_text(size=10.5))
+vln.DEGs_IPAN2[["PBSvsINF"]]
+```
+
+```{r fig.height=4, fig.width=2.8, message=FALSE, warning=FALSE}
+
+# IPAN2_PBSup
+x = "IPAN2_PBSup"
+vln.DEGs_IPAN2[["CTLvsCKO"]][[x]] <- VlnPlot(subset(GEX.seur, subset= orig.ident == "Nb5d.CTL_CKO" & intAnno1 %in% c("IPAN2")), 
+                                             features = paste0("cut2.score.",x), group.by = "cnt", cols = color.test2, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.2, shape=16, width = 0.2, size = 0.25) & labs(x = "IPAN2 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.3,1.15)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.CTL","Nb5d.CKO")),
+                               label.y = c(1),
+                               size=2.75
+                               ) & theme(plot.title = element_text(size=10.5))
+
+# IPAN2_INFup
+x = "IPAN2_INFup"
+vln.DEGs_IPAN2[["CTLvsCKO"]][[x]] <- VlnPlot(subset(GEX.seur, subset= orig.ident == "Nb5d.CTL_CKO" & intAnno1 %in% c("IPAN2")), 
+                                             features = paste0("cut2.score.",x), group.by = "cnt", cols = color.test2, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.2, shape=16, width = 0.2, size = 0.25) & labs(x = "IPAN2 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.15,0.75)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.CTL","Nb5d.CKO")),
+                               label.y = c(0.64),
+                               size=2.75
+                               ) & theme(plot.title = element_text(size=10.5))
+
+# IPAN2_CTLup
+x = "IPAN2_CTLup"
+vln.DEGs_IPAN2[["CTLvsCKO"]][[x]] <- VlnPlot(subset(GEX.seur, subset= orig.ident == "Nb5d.CTL_CKO" & intAnno1 %in% c("IPAN2")), 
+                                             features = paste0("cut2.score.",x), group.by = "cnt", cols = color.test2, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.2, shape=16, width = 0.2, size = 0.25) & labs(x = "IPAN2 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.15,0.81)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.CTL","Nb5d.CKO")),
+                               label.y = c(0.75),
+                               size=2.75
+                               ) & theme(plot.title = element_text(size=10.5))
+
+
+
+# IPAN2_CKOup
+x = "IPAN2_CKOup"
+vln.DEGs_IPAN2[["CTLvsCKO"]][[x]] <- VlnPlot(subset(GEX.seur, subset= orig.ident == "Nb5d.CTL_CKO" & intAnno1 %in% c("IPAN2")), 
+                                             features = paste0("cut2.score.",x), group.by = "cnt", cols = color.test2, pt.size = 0) +
+    
+  NoLegend() &
+  geom_jitter(alpha=0.2, shape=16, width = 0.2, size = 0.25) & labs(x = "IPAN2 only") &
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & coord_cartesian(ylim = c(-0.5,2)) &  
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("Nb5d.CTL","Nb5d.CKO")),
+                               label.y = c(1.8),
+                               size=2.75
+                               ) & theme(plot.title = element_text(size=10.5))
+vln.DEGs_IPAN2[["CTLvsCKO"]]
+```
+
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+# 
+pdf("./figures.integration/DEGs.new/sig.DEGs.cut2/vln.PBSvsINF.DEGcut2.scoreIPAN2.IPAN2only.pdf",
+       width = 5, height = 8)
+cowplot::plot_grid(plotlist = vln.DEGs_IPAN2$PBSvsINF, ncol = 2)
+dev.off()
+
+# 
+pdf("./figures.integration/DEGs.new/sig.DEGs.cut2/vln.CTLvsCKO.DEGcut2.scoreIPAN2.IPAN2only.pdf",
+       width = 5, height = 8)
+cowplot::plot_grid(plotlist = vln.DEGs_IPAN2$CTLvsCKO, ncol = 2)
+dev.off()
+```
+
+
+
+
+
+
+
+
+
