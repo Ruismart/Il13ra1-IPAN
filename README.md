@@ -9,8 +9,13 @@ This repository contains code used for: Wang Y, Zhang X, Liu S, Gu Z, Sun Z, Zan
 After analyzing several public and internal datasets of mouse enteric neurons, we have set up a set of practical consistent annotations for both Colon and Small Intestine data                
            
 &emsp;&emsp;<a href="https://github.com/Ruismart/Il13ra1-IPAN/blob/main/Anno_consist.md" target="_blank">**Consistent Annotations**</a>
- 
-
-
-
+        
+ref.datasets:          
+Public       
+[**Cell2020 snSS2 Colon**](https://pubmed.ncbi.nlm.nih.gov/32888429/)           
+[**NatNeur2021 sc10x SI**](https://pubmed.ncbi.nlm.nih.gov/33288908/)       
+                 
+Internal          
+[**Wang2025 sn10x SI**](https://pubmed.ncbi.nlm.nih.gov/39889704/)           
+[**Sun2025 sn10x SI/Colon**](https://pubmed.ncbi.nlm.nih.gov/40178975/)
              
