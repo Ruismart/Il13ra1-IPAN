@@ -23,6 +23,6 @@ Internal
 
 ***          
 
-A similar work is published on Science several mouths later... ~                 
+A similar work is published on Science several months later... ~                 
 https://pubmed.ncbi.nlm.nih.gov/40403128/            
          
