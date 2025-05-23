@@ -23,6 +23,6 @@ Internal
 
 ***          
 
-A similar work is now published on Science several months later... ~ (2025.05)                  
+A similar work is now online on Science several months later... ~ (2025.05)                  
 https://pubmed.ncbi.nlm.nih.gov/40403128/            
          
