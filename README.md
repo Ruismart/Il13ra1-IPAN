@@ -7,7 +7,7 @@ https://pubmed.ncbi.nlm.nih.gov/39889704/
                       
 ***          
           
-After analyzing several public and internal datasets of mouse enteric neurons, we have set up a set of practical consistent annotations for both Colon and Small Intestine data                
+After analyzing several public and internal datasets of mouse enteric neurons, we have set up a set of practical consistent annotations for both Colon and Small Intestine data (2025.04)                
            
 &emsp;&emsp;<a href="https://github.com/Ruismart/Il13ra1-IPAN/blob/main/Anno_consist.md" target="_blank">**Consistent Annotations**</a>
         
@@ -23,6 +23,6 @@ Internal
 
 ***          
 
-A similar work is published on Science several months later... ~                 
+A similar work is now published on Science several months later... ~ (2025.05)                  
 https://pubmed.ncbi.nlm.nih.gov/40403128/            
          
