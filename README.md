@@ -22,7 +22,11 @@ Internal
              
 
 ***          
+[**Progress Update for ENS**]
 
 A similar work is now online on Science several months later... ~ (2025.05)                  
 https://pubmed.ncbi.nlm.nih.gov/40403128/            
-         
+
+A new vision for SI iENs is now online on NatureNeuroscience ~ (2025.06)        
+https://pubmed.ncbi.nlm.nih.gov/40442499/
+
