@@ -26,7 +26,15 @@ Internal
 
 A similar work is now online on Science several months later... ~ (2025.05)                  
 https://pubmed.ncbi.nlm.nih.gov/40403128/            
-
+                
 A new vision for SI iENs is now online on NatureNeuroscience ~ (2025.06)        
-https://pubmed.ncbi.nlm.nih.gov/40442499/
-
+https://pubmed.ncbi.nlm.nih.gov/40442499/              
+               
+Nutrient signals sensation for IPAN, on Nature ~ (2025.07)             
+https://www.nature.com/articles/s41586-025-09228-z              
+    an earlier related review https://pubmed.ncbi.nlm.nih.gov/40318068/               
+               
+The appearence of a striking imaging tech may bring a leap for related research ~ (2025.07)                  
+https://www.cell.com/cell/fulltext/S0092-8674(25)00673-7                 
+               
+          
