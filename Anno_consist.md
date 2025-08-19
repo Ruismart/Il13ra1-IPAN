@@ -36,7 +36,7 @@ but still share similar subtypes with matched markers.
 
     ####
     ##
-    ## Here's our final consistent annotations for Enteric Neuron subytypes: 
+    ## Here's our final consistent annotations for Enteric Neuron subtypes: 
     ##   (based on NatNeur2021)
     #
     # EMN1-5   Chat+Bnc2+Tac1+ (1->5, Chat->lower, Tac1->higher)
@@ -215,3 +215,4 @@ style="width:200.0%" />
 
 <img src="./Anno_consist/Sun2025_sn10x/sigscore_ENC.Sun2025_LI.png"
 style="width:200.0%" />
+
