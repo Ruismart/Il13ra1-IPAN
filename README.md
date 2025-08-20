@@ -40,7 +40,7 @@ https://www.cell.com/cell/fulltext/S0092-8674(25)00673-7
 
 ***          
               
-<a href="https://info.flagcounter.com/dnn8"><img src="https://s01.flagcounter.com/count2/dnn8/bg_FFFFFF/txt_000000/border_CCCCCC/columns_2/maxflags_10/viewers_0/labels_0/pageviews_0/flags_0/percent_0/" alt="Flag Counter" border="0"></a><img width="1352" height="64" alt="image" src="https://github.com/user-attachments/assets/3b2cd710-ceba-46d5-a823-3e85726a2e90" />
+<a href="https://info.flagcounter.com/dnn8"><img src="https://s01.flagcounter.com/count2/dnn8/bg_FFFFFF/txt_000000/border_CCCCCC/columns_2/maxflags_10/viewers_0/labels_0/pageviews_0/flags_0/percent_0/" alt="Flag Counter" border="0"></a>
 
              
              
