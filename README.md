@@ -31,13 +31,17 @@ A new vision for SI iENs is now online on NatureNeuroscience ~ (2025.06)
 https://pubmed.ncbi.nlm.nih.gov/40442499/              
                
 Nutrient signals sensation for IPAN, on Nature ~ (2025.07)             
+(magical realtime invitro tissue living imaging!)        
 https://www.nature.com/articles/s41586-025-09228-z              
     an earlier related review https://pubmed.ncbi.nlm.nih.gov/40318068/               
                
 The appearence of a striking imaging tech may bring a leap for related research ~ (2025.07)                  
 https://www.cell.com/cell/fulltext/S0092-8674(25)00673-7                 
-                   
 
+A first ENS organoid related ... ~ (2025.07, hot July!)             
+https://...               
+                
+            
 ***          
               
 <a href="https://info.flagcounter.com/dnn8"><img src="https://s01.flagcounter.com/count2/dnn8/bg_FFFFFF/txt_000000/border_CCCCCC/columns_2/maxflags_10/viewers_0/labels_0/pageviews_0/flags_0/percent_0/" alt="Flag Counter" border="0"></a>               
