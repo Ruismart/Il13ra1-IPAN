@@ -43,13 +43,7 @@ https://...
                 
             
 ***          
-              
-<a href="https://info.flagcounter.com/dnn8"><img src="https://s01.flagcounter.com/count2/dnn8/bg_FFFFFF/txt_000000/border_CCCCCC/columns_2/maxflags_10/viewers_0/labels_0/pageviews_0/flags_0/percent_0/" alt="Flag Counter" border="0"></a>               
-(20250820 added)     
-          
-                            
-
-<a href='https://mapmyvisitors.com/web/1byv3'  title='Visit tracker'><img src='https://mapmyvisitors.com/map.png?cl=ffffff&w=a&t=tt&d=lZMCxcLVLjbT7npcyuEuWIvFvXvi-7lhHj2q_nN5Z3c&co=2d78ad&ct=ffffff'/></a>          
+      
 (ClustrMaps new)
 
                
